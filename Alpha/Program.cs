@@ -131,6 +131,7 @@ public class Program {
                 if (folder?.Path is not null) {
                     Services.Configuration.GamePath = folder.Path;
                     Services.Configuration.Save();
+                    Services.InitLumina();
                     _state = ProgramState.Main;
                 }
             }

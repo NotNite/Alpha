@@ -1,4 +1,5 @@
-﻿using Alpha.Core;
+﻿using System.Runtime.CompilerServices;
+using Alpha.Core;
 using Lumina;
 using Serilog;
 
@@ -22,13 +23,15 @@ public static class Services {
         Configuration = Configuration.Load();
         ModuleManager = new ModuleManager();
 
-        if (Configuration.GamePath is not null) {
-            var sqpackDir = Path.Combine(Configuration.GamePath, "game", "sqpack");
-            GameData = new GameData(sqpackDir, new LuminaOptions {
-                PanicOnSheetChecksumMismatch = false
-            });
-        }
+        if (Configuration.GamePath is not null) InitLumina();
 
         _initialized = true;
+    }
+
+    public static void InitLumina() {
+        var sqpackDir = Path.Combine(Configuration.GamePath, "game", "sqpack");
+        GameData = new GameData(sqpackDir, new LuminaOptions {
+            PanicOnSheetChecksumMismatch = false
+        });
     }
 }
