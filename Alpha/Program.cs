@@ -16,9 +16,9 @@ public class Program {
 
     public static readonly Version Version = Assembly.GetExecutingAssembly().GetName().Version!;
 
-    private static Sdl2Window _window = null!;
-    private static GraphicsDevice _graphicsDevice = null!;
-    private static ImGuiHandler _imGuiHandler = null!;
+    public static Sdl2Window Window = null!;
+    public static GraphicsDevice GraphicsDevice = null!;
+    public static ImGuiHandler ImGuiHandler = null!;
 
     private static readonly Logger Logger = new LoggerConfiguration()
         .WriteTo.Console()
@@ -49,49 +49,49 @@ public class Program {
 
         VeldridStartup.CreateWindowAndGraphicsDevice(
             new WindowCreateInfo(50, 50, 1280, 720, WindowState.Normal, "Alpha"),
-            out _window,
-            out _graphicsDevice
+            out Window,
+            out GraphicsDevice
         );
 
-        if (_window is null || _graphicsDevice is null) {
+        if (Window is null || GraphicsDevice is null) {
             Logger.Error("Failed to initialize Veldrid");
             return;
         }
 
         // ReSharper disable once AccessToDisposedClosure
-        _window.Resized += () => { _graphicsDevice.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height); };
+        Window.Resized += () => { GraphicsDevice.MainSwapchain.Resize((uint)Window.Width, (uint)Window.Height); };
 
-        var commandList = _graphicsDevice.ResourceFactory.CreateCommandList();
-        _imGuiHandler = new ImGuiHandler(_window, _graphicsDevice);
+        var commandList = GraphicsDevice.ResourceFactory.CreateCommandList();
+        ImGuiHandler = new ImGuiHandler(Window, GraphicsDevice);
 
         var stopwatch = Stopwatch.StartNew();
-        while (_window.Exists) {
+        while (Window.Exists) {
             var deltaTime = stopwatch.ElapsedTicks / (float)Stopwatch.Frequency;
             if (deltaTime < 1f / 60f) continue; // shitty FPS limiter
             stopwatch.Restart();
 
-            var snapshot = _window.PumpEvents();
-            if (!_window.Exists) break;
+            var snapshot = Window.PumpEvents();
+            if (!Window.Exists) break;
 
-            _imGuiHandler.Update(deltaTime, snapshot);
+            ImGuiHandler.Update(deltaTime, snapshot);
             Draw();
 
             commandList.Begin();
-            commandList.SetFramebuffer(_graphicsDevice.MainSwapchain.Framebuffer);
+            commandList.SetFramebuffer(GraphicsDevice.MainSwapchain.Framebuffer);
             var forty = 40f / 255f;
             commandList.ClearColorTarget(0, new RgbaFloat(forty, forty, forty, 1f));
 
-            _imGuiHandler.Render(commandList);
+            ImGuiHandler.Render(commandList);
 
             commandList.End();
-            _graphicsDevice.SubmitCommands(commandList);
-            _graphicsDevice.SwapBuffers(_graphicsDevice.MainSwapchain);
+            GraphicsDevice.SubmitCommands(commandList);
+            GraphicsDevice.SwapBuffers(GraphicsDevice.MainSwapchain);
         }
 
-        _graphicsDevice.WaitForIdle();
-        _imGuiHandler.Dispose();
-        _graphicsDevice.Dispose();
-        _window.Close();
+        GraphicsDevice.WaitForIdle();
+        ImGuiHandler.Dispose();
+        GraphicsDevice.Dispose();
+        Window.Close();
 
         Log.Information("Bye! :3");
     }
@@ -156,7 +156,7 @@ public class Program {
                 }
 
                 if (ImGui.MenuItem("Exit")) {
-                    _window.Close();
+                    Window.Close();
                 }
 
                 ImGui.Separator();

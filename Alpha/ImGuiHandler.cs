@@ -1,10 +1,8 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using ImGuiNET;
-using Serilog;
 using Veldrid;
 using Veldrid.Sdl2;
 
@@ -32,6 +30,12 @@ public class ImGuiHandler : IDisposable {
     private const nint FontAtlasId = 1;
     private Texture _fontTexture = null!;
     private TextureView _fontTextureView = null!;
+
+    private readonly Dictionary<TextureView, (nint, ResourceSet)> _setsByView = new();
+    private readonly Dictionary<Texture, TextureView> _autoViewsByTexture = new();
+    private readonly Dictionary<nint, (nint, ResourceSet)> _viewsById = new();
+    private readonly List<IDisposable> _ownedResources = new();
+    private int _lastAssignedId = 100;
 
     private bool _frameBegun;
 
@@ -96,6 +100,10 @@ public class ImGuiHandler : IDisposable {
 
         this._fontTexture.Dispose();
         this._fontTextureView.Dispose();
+
+        foreach (var res in this._ownedResources) {
+            res.Dispose();
+        }
     }
 
     // HELL FOLLOWS
@@ -336,7 +344,7 @@ public class ImGuiHandler : IDisposable {
                     if (pcmd.TextureId == FontAtlasId) {
                         cl.SetGraphicsResourceSet(1, this._fontTextureResourceSet);
                     } else {
-                        // TODO
+                        cl.SetGraphicsResourceSet(1, this.GetImageResourceSet(pcmd.TextureId));
                     }
                 }
 
@@ -419,5 +427,40 @@ public class ImGuiHandler : IDisposable {
         };
 
         return result != ImGuiKey.None;
+    }
+
+    public nint GetOrCreateImGuiBinding(ResourceFactory factory, TextureView textureView) {
+        if (!this._setsByView.TryGetValue(textureView, out var rsi)) {
+            var resourceSet = factory.CreateResourceSet(new ResourceSetDescription(this._textureLayout, textureView));
+            rsi = (this.GetNextImGuiBindingId(), resourceSet);
+
+            this._setsByView.Add(textureView, rsi);
+            this._viewsById.Add(rsi.Item1, rsi);
+            this._ownedResources.Add(resourceSet);
+        }
+
+        return rsi.Item1;
+    }
+
+    public IntPtr GetOrCreateImGuiBinding(ResourceFactory factory, Texture texture) {
+        if (!this._autoViewsByTexture.TryGetValue(texture, out var textureView)) {
+            textureView = factory.CreateTextureView(texture);
+            this._autoViewsByTexture.Add(texture, textureView);
+            this._ownedResources.Add(textureView);
+        }
+
+        return this.GetOrCreateImGuiBinding(factory, textureView);
+    }
+
+    public ResourceSet GetImageResourceSet(IntPtr imGuiBinding) {
+        if (!this._viewsById.TryGetValue(imGuiBinding, out var tvi)) {
+            throw new InvalidOperationException();
+        }
+
+        return tvi.Item2;
+    }
+
+    private IntPtr GetNextImGuiBindingId() {
+        return this._lastAssignedId++;
     }
 }

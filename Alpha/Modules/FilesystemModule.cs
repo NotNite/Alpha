@@ -1,7 +1,9 @@
-﻿using Alpha.Core;
+﻿using System.Numerics;
+using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
 using Lumina.Data;
+using Lumina.Data.Files;
 using NativeFileDialogSharp;
 
 namespace Alpha.Modules;
@@ -31,9 +33,7 @@ public class FilesystemModule : Module {
     private FileResource? _selectedFile;
     private float _sidebarWidth = 300f;
 
-
     public FilesystemModule() : base("Filesystem Browser", "Data") { }
-
 
     internal override void Draw() {
         this._reslogger ??= Services.ModuleManager.GetModule<ResLoggerModule>();
@@ -76,6 +76,12 @@ public class FilesystemModule : Module {
 
                     File.WriteAllBytes(path, this._selectedFile.Data);
                 }
+            }
+
+            if (this._selectedPath.EndsWith(".tex")) {
+                var texFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
+                var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
+                ImGui.Image(UiUtils.DisplayTex(texFile), size);
             }
         } else {
             ImGui.Text("No item selected :(");
