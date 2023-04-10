@@ -102,7 +102,7 @@ public class FilesystemModule : Module {
             }
 
             if (this._selectedPath.EndsWith("tex")) {
-                var texFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
+                var texFile = (TexFile)this._selectedFile;
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 ImGui.Image(UiUtils.DisplayTex(texFile), size);
             }
@@ -123,7 +123,12 @@ public class FilesystemModule : Module {
             } else {
                 if (ImGui.Selectable(item)) {
                     this._selectedPath = folder + "/" + item;
-                    this._selectedFile = Services.GameData.GetFile(this._selectedPath);
+
+                    if (item.EndsWith("tex")) {
+                        this._selectedFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
+                    } else {
+                        this._selectedFile = Services.GameData.GetFile(this._selectedPath);
+                    }
                 }
             }
         }
