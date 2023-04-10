@@ -7,6 +7,9 @@ public class Configuration {
     public string? GamePath { get; set; }
     public bool DrawImGuiDemo { get; set; }
     
+    public bool AutoPaths { get; set; }
+    public bool AutoCurrentPaths { get; set; }
+    
     public void Save() {
         var path = Path.Combine(Program.DataDirectory, "config.json");
         var serialized = JsonSerializer.Serialize(this);

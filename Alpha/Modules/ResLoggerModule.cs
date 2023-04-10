@@ -11,7 +11,10 @@ public class ResLoggerModule : Module {
     private Task? _currentFetchTask;
     private Task? _fetchTask;
 
-    public ResLoggerModule() : base("ResLogger", "Data") { }
+    public ResLoggerModule() : base("ResLogger", "Data") {
+        if (Services.Configuration.AutoPaths) this.FetchPaths();
+        if (Services.Configuration.AutoCurrentPaths) this.FetchCurrentPaths();
+    }
 
     internal override void Draw() {
         ImGui.Text("Path cache count: " + this.PathCache.Count);
@@ -22,10 +25,26 @@ public class ResLoggerModule : Module {
         if (ImGui.Button("Fetch paths")) this.FetchPaths();
         if (shouldDisable) ImGui.EndDisabled();
 
+        ImGui.SameLine();
+
+        var autoPaths = Services.Configuration.AutoPaths;
+        if (ImGui.Checkbox("Download on startup##AutoPaths", ref autoPaths)) {
+            Services.Configuration.AutoPaths = autoPaths;
+            Services.Configuration.Save();
+        }
+
         var shouldDisable2 = this._currentFetchTask is not null;
         if (shouldDisable2) ImGui.BeginDisabled();
         if (ImGui.Button("Fetch current paths")) this.FetchCurrentPaths();
         if (shouldDisable2) ImGui.EndDisabled();
+
+        ImGui.SameLine();
+
+        var autoCurrentPaths = Services.Configuration.AutoCurrentPaths;
+        if (ImGui.Checkbox("Download on startup##AutoCurrentPaths", ref autoCurrentPaths)) {
+            Services.Configuration.AutoCurrentPaths = autoCurrentPaths;
+            Services.Configuration.Save();
+        }
 
         if (ImGui.Button("Clear paths")) {
             this._fetchTask = null;

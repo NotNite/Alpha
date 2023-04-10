@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
@@ -46,7 +47,7 @@ public class FilesystemModule : Module {
             this._cache.Clear();
 
             this._rootCategories = this._reslogger.CurrentPathCache
-                .Where(x => x.Contains(this._filter))
+                .Where(x => x.ToLower().Contains(this._filter.ToLower()))
                 .Select(x => x.Split("/").First())
                 .Distinct()
                 .ToArray();
@@ -90,7 +91,17 @@ public class FilesystemModule : Module {
                 }
             }
 
-            if (this._selectedPath.EndsWith(".tex")) {
+            ImGui.SameLine();
+
+            if (ImGui.Button("Open in default app")) {
+                var tempFile = Path.GetTempFileName() + Path.GetExtension(this._selectedPath);
+                File.WriteAllBytes(tempFile, this._selectedFile.Data);
+
+                // TODO unix support
+                Process.Start("explorer.exe", $"\"{tempFile}\"");
+            }
+
+            if (this._selectedPath.EndsWith("tex")) {
                 var texFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 ImGui.Image(UiUtils.DisplayTex(texFile), size);
@@ -129,7 +140,7 @@ public class FilesystemModule : Module {
         var retFile = new List<string>();
 
         foreach (var path in this._reslogger!.CurrentPathCache) {
-            if (this._filter.Trim() is not "" && !path.Contains(this._filter)) {
+            if (this._filter.Trim() is not "" && !path.ToLower().Contains(this._filter.ToLower())) {
                 continue;
             }
 
