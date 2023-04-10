@@ -10,7 +10,9 @@ namespace Alpha.Modules;
 
 public class FilesystemModule : Module {
     // https://xiv.dev/data-files/sqpack
-    private readonly string[] _rootCategories = {
+    private string _filter = string.Empty;
+
+    private string[] _rootCategories = {
         "common",
         "bgcommon",
         "bg",
@@ -38,13 +40,24 @@ public class FilesystemModule : Module {
     internal override void Draw() {
         this._reslogger ??= Services.ModuleManager.GetModule<ResLoggerModule>();
 
-        var cra = ImGui.GetContentRegionAvail();
+        var temp = ImGui.GetCursorPosY();
+        ImGui.SetNextItemWidth(this._sidebarWidth);
+        if (ImGui.InputText("##FilesystemFilter", ref this._filter, 1024)) {
+            this._cache.Clear();
 
+            this._rootCategories = this._reslogger.CurrentPathCache
+                .Where(x => x.Contains(this._filter))
+                .Select(x => x.Split("/").First())
+                .Distinct()
+                .ToArray();
+        }
+
+        var cra = ImGui.GetContentRegionAvail();
         ImGui.BeginChild("##FilesystemModule_Sidebar", cra with { X = this._sidebarWidth }, true);
 
         if (this._reslogger.CurrentPathCache.Count > 0) {
             foreach (var rootCategory in this._rootCategories) {
-                if (ImGui.TreeNode(rootCategory)) {
+                if (ImGui.TreeNode(rootCategory + "/")) {
                     this.RecursiveTree(rootCategory);
                     ImGui.TreePop();
                 }
@@ -54,7 +67,6 @@ public class FilesystemModule : Module {
         }
 
         ImGui.EndChild();
-
 
         ImGui.SameLine();
         UiUtils.HorizontalSplitter(ref this._sidebarWidth);
@@ -117,8 +129,13 @@ public class FilesystemModule : Module {
         var retFile = new List<string>();
 
         foreach (var path in this._reslogger!.CurrentPathCache) {
+            if (this._filter.Trim() is not "" && !path.Contains(this._filter)) {
+                continue;
+            }
+
             if (path.StartsWith(directory) && path.Split("/").Length == partCount + 1) {
                 var fileName = path.Split("/").Last();
+
                 if (!retFile.Contains(fileName)) {
                     retFile.Add(fileName);
                 }
