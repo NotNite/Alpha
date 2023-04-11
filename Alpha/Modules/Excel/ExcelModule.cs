@@ -1,8 +1,11 @@
-﻿using System.Text.Json;
+﻿using System.Numerics;
+using System.Text.Json;
 using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
 using Lumina.Excel;
+using Lumina.Extensions;
+using Lumina.Text;
 using Serilog;
 
 namespace Alpha.Modules.Excel;
@@ -190,27 +193,60 @@ public class ExcelModule : Module {
     }
 
     private void DrawEntry(int row, int col, object data, ConverterDefinition? converter) {
-        // The base converter has nothing to draw
-        if (converter is null || converter.GetType() == typeof(ConverterDefinition)) {
-            var str = data.ToString();
-            ImGui.TextUnformatted(str);
+        switch (converter) {
+            case LinkConverterDefinition link when link.Target != null: {
+                var targetRow = Convert.ToInt32(data);
+                var text = $"{link.Target}#{targetRow}" + $"##{row}_{col}";
 
-            if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
-                if (ImGui.MenuItem("Copy")) {
-                    ImGui.SetClipboardText(str);
+                if (ImGui.Button(text)) {
+                    Services.ModuleManager.GetModule<ExcelModule>().OpenSheet(link.Target, targetRow);
                 }
 
-                ImGui.EndPopup();
+                break;
             }
 
-            return;
-        }
+            case IconConverterDefinition: {
+                var iconId = Convert.ToUInt32(data);
+                var icon = Services.GameData.GetIcon(iconId);
+                if (icon is not null) {
+                    var handle = UiUtils.DisplayTex(icon);
+                    var size = new Vector2(icon.Header.Width, icon.Header.Height);
+                    ImGui.Image(handle, size);
 
-        // Else, use the converter
-        try {
-            converter.Draw(row, col, data);
-        } catch {
-            // Catch & toss exceptions because casting fucking sucks
+                    if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
+                        if (ImGui.MenuItem("Copy icon ID")) {
+                            ImGui.SetClipboardText(iconId.ToString());
+                        }
+
+                        if (ImGui.MenuItem("Save")) {
+                            FileUtils.Save(icon.Data, "tex");
+                        }
+
+                        ImGui.EndPopup();
+                    }
+                }
+
+                break;
+            }
+
+            default: {
+                var str = data.ToString();
+                if (data is SeString seString) {
+                    str = UiUtils.DisplaySeString(seString);
+                }
+
+                ImGui.TextUnformatted(str);
+
+                if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
+                    if (ImGui.MenuItem("Copy")) {
+                        ImGui.SetClipboardText(str);
+                    }
+
+                    ImGui.EndPopup();
+                }
+
+                break;
+            }
         }
     }
 }
