@@ -27,8 +27,6 @@ public class ExcelModule : Module {
 
     public ExcelModule() : base("Excel Browser", "Data") {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
-
-        this.OpenSheet("ExportedSG");
     }
 
     internal override void PreDraw() {
