@@ -17,14 +17,25 @@ public class SingleColumnDefinition : ColumnDefinition {
     [JsonPropertyName("converter")] public ConverterDefinition? Converter { get; init; }
 }
 
+public class RepeatColumnDefinition : ColumnDefinition {
+    [JsonPropertyName("count")] public uint Count { get; init; }
+    [JsonPropertyName("definition")] public ColumnDefinition Definition { get; init; }
+}
+
+public class GroupColumnDefinition : ColumnDefinition {
+    [JsonPropertyName("members")] public ColumnDefinition[] Members { get; init; }
+}
+
 // Really not a fan I had to do this, but I can't wrestle the polymorphism attributes into working
 class RowDefinitionJsonConverter : JsonConverter<ColumnDefinition> {
-    public override ColumnDefinition? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+    public override ColumnDefinition? Read(ref Utf8JsonReader reader, Type typeToConvert,
+        JsonSerializerOptions options) {
         var jsonDocument = JsonDocument.ParseValue(ref reader);
         var type = jsonDocument.RootElement.TryGetProperty("type", out var prop) ? prop.GetString() : null;
 
         return type switch {
-            // TODO group, repeat
+            "repeat" => jsonDocument.Deserialize(typeof(RepeatColumnDefinition)) as ColumnDefinition,
+            "group" => jsonDocument.Deserialize(typeof(GroupColumnDefinition)) as ColumnDefinition,
             _ => jsonDocument.Deserialize(typeof(SingleColumnDefinition)) as ColumnDefinition
         };
     }

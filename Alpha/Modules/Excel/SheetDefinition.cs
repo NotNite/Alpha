@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using Serilog;
 
 #pragma warning disable CS8618
 
@@ -11,15 +12,51 @@ public class SheetDefinition {
     [JsonPropertyName("defaultColumn")] public string? DefaultColumn { get; init; }
     [JsonPropertyName("definitions")] public ColumnDefinition[] Definitions { get; init; }
 
-    private Dictionary<uint, ColumnDefinition?> _columnCache = new();
+    private Dictionary<uint, ColumnDefinition?>? _columnCache;
+
+    private uint ResolveDefinition(ColumnDefinition def, uint offset = 0) {
+        // Index defaults to zero if there isn't one specified, BUT this might be a repeat or group definition
+        var realOffset = def.Index == 0 ? offset : def.Index;
+
+        if (def is RepeatColumnDefinition rcd) {
+            var baseIdx = realOffset;
+
+            for (var i = 0; i < rcd.Count; i++) {
+                baseIdx += this.ResolveDefinition(rcd.Definition, baseIdx);
+            }
+
+            return baseIdx - realOffset;
+        }
+
+        if (def is GroupColumnDefinition gcd) {
+            var baseIdx = realOffset;
+
+            foreach (var member in gcd.Members) {
+                baseIdx += this.ResolveDefinition(member, baseIdx);
+            }
+
+            return baseIdx - realOffset;
+        }
+
+        // Normal definition, just insert and move on
+        if (!this._columnCache!.ContainsKey(realOffset)) {
+            this._columnCache[realOffset] = def;
+        }
+
+        return 1;
+    }
 
     private ColumnDefinition? GetDefinitionByIndex(uint index) {
-        if (this._columnCache.TryGetValue(index, out var def)) return def;
+        // can't put this in constructor, dunno why
+        if (this._columnCache is null) {
+            this._columnCache = new();
 
-        def = this.Definitions.FirstOrDefault(d => d.Index == index);
-        this._columnCache[index] = def;
+            foreach (var def in this.Definitions) {
+                this.ResolveDefinition(def);
+            }
+        }
 
-        return def;
+        return this._columnCache.TryGetValue(index, out var retDef) ? retDef : null;
     }
 
     public string? GetNameForColumn(int index) {

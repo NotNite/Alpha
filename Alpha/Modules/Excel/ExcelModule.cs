@@ -3,8 +3,8 @@ using System.Text.Json;
 using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
+using Lumina.Data.Files;
 using Lumina.Excel;
-using Lumina.Extensions;
 using Lumina.Text;
 using Serilog;
 
@@ -28,6 +28,8 @@ public class ExcelModule : Module {
 
     public ExcelModule() : base("Excel Browser", "Data") {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
+
+        this.OpenSheet("Item");
     }
 
     internal override void PreDraw() {
@@ -242,15 +244,33 @@ public class ExcelModule : Module {
                     // ignored
                 }
 
-                var icon = Services.GameData.GetIcon(iconId);
+                var icon = UiUtils.GetIcon(iconId);
                 if (icon is not null) {
+                    var path = icon.FilePath;
                     var handle = UiUtils.DisplayTex(icon);
                     var size = new Vector2(icon.Header.Width, icon.Header.Height);
                     ImGui.Image(handle, size);
 
+                    var shouldShowMagnum = ImGui.IsKeyDown(ImGui.GetKeyIndex(ImGuiKey.ModAlt)) && ImGui.IsItemHovered();
+                    if (shouldShowMagnum) {
+                        ImGui.BeginTooltip();
+                        ImGui.Image(handle, size * 2);
+                        ImGui.EndTooltip();
+                    }
+
                     if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
+                        ImGui.MenuItem(path, false);
+
                         if (ImGui.MenuItem("Copy icon ID")) {
                             ImGui.SetClipboardText(iconId.ToString());
+                        }
+
+                        if (ImGui.MenuItem("Copy icon path")) {
+                            ImGui.SetClipboardText(path);
+                        }
+
+                        if (ImGui.MenuItem("Open in filesystem browser")) {
+                            Services.ModuleManager.GetModule<FilesystemModule>().OpenFile(path);
                         }
 
                         if (ImGui.MenuItem("Save")) {
@@ -258,6 +278,41 @@ public class ExcelModule : Module {
                         }
 
                         ImGui.EndPopup();
+                    }
+                } else {
+                    ImGui.BeginDisabled();
+                    ImGui.TextUnformatted($"(couldn't load icon {iconId})");
+                    ImGui.EndDisabled();
+                }
+
+                break;
+            }
+
+            case ComplexLinkConverterDefinition complex: {
+                var targetRow = 0;
+                try {
+                    targetRow = Convert.ToInt32(data);
+                } catch {
+                    // ignored
+                }
+
+                var keyValues = new Dictionary<string, object>();
+                // We need to be being parsed *from* a sheet definition, so these !s are safe
+                var thisRow = this._selectedSheet!.GetRow((uint)row)!;
+
+                for (var i = 0; i < this._selectedSheet!.ColumnCount; i++) {
+                    var colName = this._sheetDefinitions[this._selectedSheet.Name]!.GetNameForColumn(i);
+                    var colValue = thisRow.ReadColumnRaw(i);
+                    if (colName is null || colValue is null) continue;
+                    keyValues[colName] = colValue;
+                }
+
+                var resolvedLinks = complex.ResolveComplexLink(keyValues);
+                foreach (var link in resolvedLinks) {
+                    var text = $"{link}#{targetRow}" + $"##{row}_{col}";
+
+                    if (ImGui.Button(text)) {
+                        Services.ModuleManager.GetModule<ExcelModule>().OpenSheet(link, targetRow);
                     }
                 }
 
