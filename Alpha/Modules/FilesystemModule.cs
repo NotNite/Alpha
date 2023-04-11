@@ -111,7 +111,7 @@ public class FilesystemModule : Module {
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 ImGui.Image(UiUtils.DisplayTex(texFile), size);
             }
-        } 
+        }
 
         ImGui.EndChild();
     }
@@ -125,15 +125,20 @@ public class FilesystemModule : Module {
                 }
             } else {
                 if (ImGui.Selectable(item)) {
-                    this._selectedPath = folder + "/" + item;
-
-                    if (item.EndsWith("tex")) {
-                        this._selectedFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
-                    } else {
-                        this._selectedFile = Services.GameData.GetFile(this._selectedPath);
-                    }
+                    this.OpenFile(folder + "/" + item);
                 }
             }
+        }
+    }
+
+    public void OpenFile(string path) {
+        this.WindowOpen = true;
+        this._selectedPath = path;
+
+        if (path.EndsWith("tex")) {
+            this._selectedFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
+        } else {
+            this._selectedFile = Services.GameData.GetFile(this._selectedPath);
         }
     }
 

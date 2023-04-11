@@ -258,6 +258,10 @@ public class ExcelModule : Module {
                 ImGui.TextUnformatted(str);
 
                 if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
+                    if (Services.GameData.FileExists(str) && ImGui.MenuItem("Open in filesystem browser")) {
+                        Services.ModuleManager.GetModule<FilesystemModule>().OpenFile(str);
+                    }
+
                     if (ImGui.MenuItem("Copy")) {
                         ImGui.SetClipboardText(str);
                     }
