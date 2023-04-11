@@ -177,8 +177,9 @@ public class ExcelModule : Module {
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
         var rows = this._selectedSheet.GetRowParsers().ToArray();
         foreach (var i in clipper.Rows) {
-            var actualIndex = this._filteredRows?[i] ?? (uint)i;
-            var row = rows[actualIndex];
+            var row = this._filteredRows is not null
+                ? this._selectedSheet.GetRowParser(this._filteredRows[i])
+                : rows[i];
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
@@ -321,7 +322,9 @@ public class ExcelModule : Module {
                 var thisRow = this._selectedSheet!.GetRow((uint)row)!;
 
                 for (var i = 0; i < this._selectedSheet!.ColumnCount; i++) {
-                    var colName = this._sheetDefinitions[this._selectedSheet.Name]!.GetNameForColumn(i);
+                    var sheetDef = this._sheetDefinitions[this._selectedSheet.Name];
+                    if (sheetDef is null) continue;
+                    var colName = sheetDef.GetNameForColumn(i);
                     var colValue = thisRow.ReadColumnRaw(i);
                     if (colName is null || colValue is null) continue;
                     keyValues[colName] = colValue;
