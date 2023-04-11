@@ -212,21 +212,25 @@ public class ExcelModule : Module {
 
         ImGui.TableSetupScrollFreeze(1, 1);
 
-        ImGui.TableSetupColumn("Row");
+        ImGui.TableHeadersRow();
+        ImGui.TableSetColumnIndex(0);
+        ImGui.TableHeader("Row");
         for (var i = 0; i < colCount; i++) {
             var colName = sheetDefinition?.GetNameForColumn(i) ?? i.ToString();
-            ImGui.TableSetupColumn(colName);
 
-            var hovered = ImGui.TableGetColumnFlags(i + 1).HasFlag(ImGuiTableColumnFlags.IsHovered);
-            if (hovered) {
+            ImGui.TableSetColumnIndex(i + 1);
+            ImGui.TableHeader(colName);
+
+            if (ImGui.IsItemHovered()) {
+                var col = this._selectedSheet.Columns[i];
+                var offset = col.Offset;
+                var str = $"Offset: {offset} (0x{offset:X})\nIndex: {i}\nData type: {col.Type.ToString()}";
+
                 ImGui.BeginTooltip();
-                var offset = this._selectedSheet.Columns[i].Offset;
-                ImGui.TextUnformatted($"Offset: {offset} (0x{offset:X})\nIndex: {i}");
+                ImGui.TextUnformatted(str);
                 ImGui.EndTooltip();
             }
         }
-
-        ImGui.TableHeadersRow();
 
         var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
         var clipper = new ListClipper(actualRowCount, itemHeight: this._itemHeight);
