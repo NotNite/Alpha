@@ -7,20 +7,48 @@ namespace Alpha.Core;
 public class ModuleManager {
     private readonly List<Module> _modules = new();
 
-    public ModuleManager() {
-        this.InitializeModules();
-    }
-
-    private void InitializeModules() {
-        var reflectedModules = Assembly.GetExecutingAssembly()
+    public void InitializeModules() {
+        var modules = Assembly.GetExecutingAssembly()
             .GetTypes()
             .Where(t => t.IsSubclassOf(typeof(Module)))
-            .Select(t => (Module)Activator.CreateInstance(t)!);
+            .ToArray();
 
-        foreach (var module in reflectedModules) {
-            Log.Debug("Initializing module: {0}", module.GetType().Name);
+        // I will write my own dependency resolver instead of using DI and you will slowly weep
+        var dependencyGraph = new Dictionary<Type, List<Type>>();
+        foreach (var type in modules) {
+            var attr = type.GetCustomAttribute<ModuleAttribute>() ?? new ModuleAttribute();
+            var dependencies = new List<Type>();
+
+            foreach (var dependency in attr.DependsOn) {
+                var dependencyType = modules.First(x => x.Name == dependency);
+                dependencies.Add(dependencyType);
+            }
+
+            dependencyGraph.Add(type, dependencies);
+        }
+
+        var resolvedOrder = new List<Type>();
+        while (dependencyGraph.Count > 0) {
+            var noDependencies = dependencyGraph.Where(x => x.Value.Count == 0).ToList();
+            foreach (var (type, _) in noDependencies) {
+                resolvedOrder.Add(type);
+                dependencyGraph.Remove(type);
+            }
+
+            foreach (var (_, dependencies) in dependencyGraph) {
+                foreach (var noDependency in noDependencies) {
+                    dependencies.Remove(noDependency.Key);
+                }
+            }
+        }
+
+        foreach (var type in resolvedOrder) {
+            Log.Information("Initializing module: {0}", type.Name);
+            var module = (Module)Activator.CreateInstance(type)!;
             this._modules.Add(module);
         }
+
+        Log.Information("Initialized {0} modules.", this._modules.Count);
     }
 
     public T GetModule<T>() where T : Module {

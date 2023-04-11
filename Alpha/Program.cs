@@ -41,10 +41,11 @@ public class Program {
             Directory.CreateDirectory(DataDirectory);
         }
 
-        Services.Initialize();
-
+        Services.InitPreSetup();
         if (Services.Configuration.GamePath is null) {
             _state = ProgramState.Setup;
+        } else {
+            Services.InitPostSetup();
         }
 
         VeldridStartup.CreateWindowAndGraphicsDevice(
@@ -131,7 +132,7 @@ public class Program {
                 if (folder?.Path is not null) {
                     Services.Configuration.GamePath = folder.Path;
                     Services.Configuration.Save();
-                    Services.InitLumina();
+                    Services.InitPostSetup();
                     _state = ProgramState.Main;
                 }
             }

@@ -9,6 +9,7 @@ using NativeFileDialogSharp;
 
 namespace Alpha.Modules;
 
+[Module(DependsOn = new[] { "ResLoggerModule" })]
 public class FilesystemModule : Module {
     // https://xiv.dev/data-files/sqpack
     private string _filter = string.Empty;
@@ -29,18 +30,18 @@ public class FilesystemModule : Module {
         "music"
     };
 
-    private ResLoggerModule? _reslogger;
+    private ResLoggerModule _reslogger;
     private Dictionary<string, List<string>> _cache = new();
 
     private string? _selectedPath;
     private FileResource? _selectedFile;
     private float _sidebarWidth = 300f;
 
-    public FilesystemModule() : base("Filesystem Browser", "Data") { }
+    public FilesystemModule() : base("Filesystem Browser", "Data") {
+        this._reslogger = Services.ModuleManager.GetModule<ResLoggerModule>();
+    }
 
     internal override void Draw() {
-        this._reslogger ??= Services.ModuleManager.GetModule<ResLoggerModule>();
-
         var temp = ImGui.GetCursorPosY();
         ImGui.SetNextItemWidth(this._sidebarWidth);
         if (ImGui.InputText("##FilesystemFilter", ref this._filter, 1024)) {
@@ -70,8 +71,12 @@ public class FilesystemModule : Module {
         ImGui.EndChild();
 
         ImGui.SameLine();
+        ImGui.SetCursorPosY(temp);
+
         UiUtils.HorizontalSplitter(ref this._sidebarWidth);
+
         ImGui.SameLine();
+        ImGui.SetCursorPosY(temp);
 
         ImGui.BeginChild("##FilesystemModule_Content", ImGui.GetContentRegionAvail(), true);
         if (this._selectedFile is not null) {
@@ -106,9 +111,7 @@ public class FilesystemModule : Module {
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 ImGui.Image(UiUtils.DisplayTex(texFile), size);
             }
-        } else {
-            ImGui.Text("No item selected :(");
-        }
+        } 
 
         ImGui.EndChild();
     }

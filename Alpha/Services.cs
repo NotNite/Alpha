@@ -1,7 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-using Alpha.Core;
+﻿using Alpha.Core;
 using Lumina;
-using Serilog;
 
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -12,26 +10,19 @@ public static class Services {
     public static ModuleManager ModuleManager = null!;
     public static GameData GameData = null!;
 
-    private static bool _initialized;
-
-    public static void Initialize() {
-        if (_initialized) {
-            Log.Warning("Tried to initialize services twice?");
-            return;
-        }
-
+    // Setup is split into two parts for modules that depend on Lumina
+    // This is a garbage state machine, and garbage dependency management, but I don't care
+    public static void InitPreSetup() {
         Configuration = Configuration.Load();
-        ModuleManager = new ModuleManager();
-
-        if (Configuration.GamePath is not null) InitLumina();
-
-        _initialized = true;
     }
 
-    public static void InitLumina() {
-        var sqpackDir = Path.Combine(Configuration.GamePath, "game", "sqpack");
+    public static void InitPostSetup() {
+        var sqpackDir = Path.Combine(Configuration.GamePath!, "game", "sqpack");
         GameData = new GameData(sqpackDir, new LuminaOptions {
             PanicOnSheetChecksumMismatch = false
         });
+        
+        ModuleManager = new ModuleManager();
+        ModuleManager.InitializeModules();
     }
 }
