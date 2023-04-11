@@ -25,7 +25,8 @@ public class ExcelModule : Module {
 
     private int? _tempScroll;
     private int _paintTicksLeft = -1;
-
+    private float _lastItemHeight = 0;
+    
     public ExcelModule() : base("Excel Browser", "Data") {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
     }
@@ -169,7 +170,7 @@ public class ExcelModule : Module {
         ImGui.TableHeadersRow();
 
         var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
-        var clipper = new ListClipper(actualRowCount);
+        var clipper = new ListClipper(actualRowCount, itemHeight: this._lastItemHeight);
         foreach (var i in clipper.Rows) {
             var actualIndex = this._filteredRows?[i] ?? (uint)i;
             var row = this._selectedSheet.GetRow(actualIndex);
@@ -187,8 +188,13 @@ public class ExcelModule : Module {
                 var obj = row.ReadColumnRaw(col);
                 if (obj != null) {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
-
+                    
+                    var prevHeight = ImGui.GetCursorPosY();
                     this.DrawEntry((int)row.RowId, col, obj, converter);
+                    var newHeight = ImGui.GetCursorPosY();
+                    
+                    var itemHeight = newHeight - prevHeight;
+                    if (itemHeight > this._lastItemHeight) this._lastItemHeight = itemHeight;
                 }
 
                 if (col < colCount - 1) ImGui.TableNextColumn();
