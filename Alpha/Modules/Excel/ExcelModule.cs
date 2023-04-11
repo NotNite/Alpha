@@ -3,7 +3,6 @@ using System.Text.Json;
 using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
-using Lumina.Data.Files;
 using Lumina.Excel;
 using Lumina.Text;
 using Serilog;
@@ -25,10 +24,11 @@ public class ExcelModule : Module {
 
     private int? _tempScroll;
     private int _paintTicksLeft = -1;
-    private float _lastItemHeight = 0;
-    
+
     public ExcelModule() : base("Excel Browser", "Data") {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
+
+        this.OpenSheet("ExportedSG");
     }
 
     internal override void PreDraw() {
@@ -170,11 +170,13 @@ public class ExcelModule : Module {
         ImGui.TableHeadersRow();
 
         var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
-        var clipper = new ListClipper(actualRowCount, itemHeight: this._lastItemHeight);
+        var clipper = new ListClipper(actualRowCount);
+
+        // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
+        var rows = this._selectedSheet.GetRowParsers().ToArray();
         foreach (var i in clipper.Rows) {
             var actualIndex = this._filteredRows?[i] ?? (uint)i;
-            var row = this._selectedSheet.GetRow(actualIndex);
-            if (row is null) continue;
+            var row = rows[actualIndex];
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
@@ -188,18 +190,13 @@ public class ExcelModule : Module {
                 var obj = row.ReadColumnRaw(col);
                 if (obj != null) {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
-                    
-                    var prevHeight = ImGui.GetCursorPosY();
                     this.DrawEntry((int)row.RowId, col, obj, converter);
-                    var newHeight = ImGui.GetCursorPosY();
-                    
-                    var itemHeight = newHeight - prevHeight;
-                    if (itemHeight > this._lastItemHeight) this._lastItemHeight = itemHeight;
                 }
 
                 if (col < colCount - 1) ImGui.TableNextColumn();
             }
         }
+
 
         // I don't know why I need to do this but I really don't care, it's 12 AM and I want sleep
         // seems to crash if you scroll immediately, seems to do nothing if you scroll too little
@@ -252,6 +249,8 @@ public class ExcelModule : Module {
                 if (icon is not null) {
                     var path = icon.FilePath;
                     var handle = UiUtils.DisplayTex(icon);
+                    if (handle == IntPtr.Zero) break;
+
                     var size = new Vector2(icon.Header.Width, icon.Header.Height);
                     ImGui.Image(handle, size);
 
@@ -328,6 +327,8 @@ public class ExcelModule : Module {
                 if (data is SeString seString) {
                     str = UiUtils.DisplaySeString(seString);
                 }
+
+                if (str is null) break;
 
                 ImGui.TextUnformatted(str);
 
