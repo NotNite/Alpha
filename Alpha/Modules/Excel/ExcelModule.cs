@@ -24,6 +24,7 @@ public class ExcelModule : Module {
 
     private int? _tempScroll;
     private int _paintTicksLeft = -1;
+    private float _itemHeight = 0f;
 
     public ExcelModule() : base("Excel Browser", "Data") {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
@@ -53,6 +54,7 @@ public class ExcelModule : Module {
 
         Log.Debug("Opening sheet: {name}", name);
 
+        this._itemHeight = 0f;
         this._selectedSheet = sheet;
         this.ResolveSheetDefinition();
         this.WindowOpen = true;
@@ -145,6 +147,7 @@ public class ExcelModule : Module {
 
         var rowCount = this._selectedSheet.RowCount;
         var colCount = this._selectedSheet.ColumnCount;
+        colCount = Math.Min(colCount, 63); // holy shit
 
         var flags = ImGuiTableFlags.Borders
                     | ImGuiTableFlags.NoSavedSettings
@@ -168,7 +171,8 @@ public class ExcelModule : Module {
         ImGui.TableHeadersRow();
 
         var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
-        var clipper = new ListClipper(actualRowCount);
+        var clipper = new ListClipper(actualRowCount, itemHeight: this._itemHeight);
+        var newHeight = 0f;
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
         var rows = this._selectedSheet.GetRowParsers().ToArray();
@@ -188,13 +192,27 @@ public class ExcelModule : Module {
                 var obj = row.ReadColumnRaw(col);
                 if (obj != null) {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
+
+                    var prev = ImGui.GetCursorPosY();
                     this.DrawEntry((int)row.RowId, col, obj, converter);
+                    var next = ImGui.GetCursorPosY();
+
+                    var height = next - prev;
+                    var needed = this._itemHeight - height;
+                    if (needed > 0) {
+                        ImGui.Dummy(new Vector2(0, needed));
+                    }
+
+                    if (height > newHeight) newHeight = height;
                 }
 
                 if (col < colCount - 1) ImGui.TableNextColumn();
             }
         }
 
+        if (newHeight > this._itemHeight) {
+            this._itemHeight = newHeight;
+        }
 
         // I don't know why I need to do this but I really don't care, it's 12 AM and I want sleep
         // seems to crash if you scroll immediately, seems to do nothing if you scroll too little
@@ -250,6 +268,7 @@ public class ExcelModule : Module {
                     if (handle == IntPtr.Zero) break;
 
                     var size = new Vector2(icon.Header.Width, icon.Header.Height);
+                    if (size.Y > 512) size *= 512 / size.Y;
                     ImGui.Image(handle, size);
 
                     var shouldShowMagnum = ImGui.IsKeyDown(ImGui.GetKeyIndex(ImGuiKey.ModAlt)) && ImGui.IsItemHovered();
