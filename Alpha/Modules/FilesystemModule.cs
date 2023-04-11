@@ -41,6 +41,10 @@ public class FilesystemModule : Module {
         this._reslogger = Services.ModuleManager.GetModule<ResLoggerModule>();
     }
 
+    internal override void PreDraw() {
+        ImGui.SetNextWindowSize(new Vector2(960, 540), ImGuiCond.FirstUseEver);
+    }
+
     internal override void Draw() {
         var temp = ImGui.GetCursorPosY();
         ImGui.SetNextItemWidth(this._sidebarWidth);

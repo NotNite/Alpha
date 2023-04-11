@@ -49,7 +49,12 @@ public class Program {
         }
 
         VeldridStartup.CreateWindowAndGraphicsDevice(
-            new WindowCreateInfo(50, 50, 1280, 720, WindowState.Normal, "Alpha"),
+            new WindowCreateInfo(
+                Services.Configuration.WindowX,
+                Services.Configuration.WindowY,
+                Services.Configuration.WindowWidth,
+                Services.Configuration.WindowHeight,
+                WindowState.Normal, "Alpha"),
             out Window,
             out GraphicsDevice
         );
@@ -93,6 +98,12 @@ public class Program {
         ImGuiHandler.Dispose();
         GraphicsDevice.Dispose();
         Window.Close();
+
+        Services.Configuration.WindowWidth = Window.Width;
+        Services.Configuration.WindowHeight = Window.Height;
+        Services.Configuration.WindowX = Window.X;
+        Services.Configuration.WindowY = Window.Y;
+        Services.Configuration.Save();
 
         Log.Information("Bye! :3");
     }

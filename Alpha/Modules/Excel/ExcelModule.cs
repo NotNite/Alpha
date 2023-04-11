@@ -30,6 +30,10 @@ public class ExcelModule : Module {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
     }
 
+    internal override void PreDraw() {
+        ImGui.SetNextWindowSize(new Vector2(960, 540), ImGuiCond.FirstUseEver);
+    }
+
     public RawExcelSheet? GetSheet(string name) {
         if (this._sheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
