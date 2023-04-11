@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
 using Alpha.Modules;
+using Alpha.Utils;
 using ImGuiNET;
 using NativeFileDialogSharp;
 using Serilog;
@@ -72,6 +73,8 @@ public class Program {
         ImGuiHandler = new ImGuiHandler(Window, GraphicsDevice);
 
         var stopwatch = Stopwatch.StartNew();
+        var imageStopwatch = Stopwatch.StartNew();
+
         while (Window.Exists) {
             var deltaTime = stopwatch.ElapsedTicks / (float)Stopwatch.Frequency;
             if (deltaTime < 1f / 60f) continue; // shitty FPS limiter
@@ -93,6 +96,11 @@ public class Program {
             commandList.End();
             GraphicsDevice.SubmitCommands(commandList);
             GraphicsDevice.SwapBuffers(GraphicsDevice.MainSwapchain);
+
+            if (imageStopwatch.ElapsedMilliseconds > 10000) {
+                imageStopwatch.Restart();
+                Services.ImageHandler.DisposeAllTextures(); 
+            }
         }
 
         GraphicsDevice.WaitForIdle();

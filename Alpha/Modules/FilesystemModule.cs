@@ -113,7 +113,7 @@ public class FilesystemModule : Module {
             if (this._selectedPath.EndsWith("tex")) {
                 var texFile = (TexFile)this._selectedFile;
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
-                ImGui.Image(UiUtils.DisplayTex(texFile), size);
+                ImGui.Image(Services.ImageHandler.DisplayTex(texFile), size);
             }
         }
 

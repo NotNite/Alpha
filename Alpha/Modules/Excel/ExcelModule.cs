@@ -3,6 +3,7 @@ using System.Text.Json;
 using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
+using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
 using Lumina.Text;
 using Serilog;
@@ -16,7 +17,11 @@ public class ExcelModule : Module {
     private List<uint>? _filteredRows;
 
     private string[] _sheets;
+
     private RawExcelSheet? _selectedSheet;
+
+    // Working around a Lumina bug to map index to row
+    private Dictionary<uint, (uint, uint?)> _rowMapping = new();
 
     private HttpClient _httpClient = new();
     private readonly Dictionary<string, RawExcelSheet?> _sheetsCache = new();
@@ -24,7 +29,7 @@ public class ExcelModule : Module {
 
     private int? _tempScroll;
     private int _paintTicksLeft = -1;
-    private float _itemHeight = 0f;
+    private float _itemHeight;
 
     public ExcelModule() : base("Excel Browser", "Data") {
         this._sheets = Services.GameData.Excel.GetSheetNames().ToArray();
@@ -54,10 +59,12 @@ public class ExcelModule : Module {
 
         Log.Debug("Opening sheet: {name}", name);
 
-        this._itemHeight = 0f;
         this._selectedSheet = sheet;
         this.ResolveSheetDefinition();
+        this.SetupRows();
+
         this.WindowOpen = true;
+        this._itemHeight = 0f;
     }
 
     private void ResolveSheetDefinition() {
@@ -142,6 +149,49 @@ public class ExcelModule : Module {
         ImGui.EndGroup();
     }
 
+    private void SetupRows() {
+        var sheet = this._selectedSheet;
+        if (sheet is null) return;
+
+        var currentRow = 0u;
+        foreach (var page in sheet.DataPages) {
+            foreach (var row in page.File.RowData.Values) {
+                var parser = new RowParser(sheet, page.File);
+                parser.SeekToRow(row.RowId);
+
+                if (sheet.Header.Variant == ExcelVariant.Subrows) {
+                    for (uint i = 0; i < parser.RowCount; i++) {
+                        // Build a new parser for every subrow - this is VERY inefficient
+                        this._rowMapping[currentRow] = (row.RowId, i);
+                        currentRow++;
+                    }
+                } else {
+                    this._rowMapping[currentRow] = (row.RowId, null);
+                    currentRow++;
+                }
+            }
+        }
+    }
+
+    private RowParser? GetRow(uint index) {
+        var sheet = this._selectedSheet;
+        if (sheet is null) return null;
+
+        var (row, subrow) = this._rowMapping[index];
+
+        var page = sheet.DataPages.FirstOrDefault(x => x.File.RowData.ContainsKey(row));
+        if (page is null) return null;
+
+        var parser = new RowParser(sheet, page.File);
+        if (subrow is not null) {
+            parser.SeekToRow(row, subrow.Value);
+        } else {
+            parser.SeekToRow(row);
+        }
+
+        return parser;
+    }
+
     private void DrawTable() {
         if (!this._sheetDefinitions.TryGetValue(this._selectedSheet!.Name, out var sheetDefinition)) return;
 
@@ -175,11 +225,11 @@ public class ExcelModule : Module {
         var newHeight = 0f;
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
-        var rows = this._selectedSheet.GetRowParsers().ToArray();
         foreach (var i in clipper.Rows) {
             var row = this._filteredRows is not null
-                ? this._selectedSheet.GetRowParser(this._filteredRows[i])
-                : rows[i];
+                ? this.GetRow(this._filteredRows[i])
+                : this.GetRow((uint)i);
+            if (row is null) continue;
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
@@ -262,10 +312,10 @@ public class ExcelModule : Module {
                     // ignored
                 }
 
-                var icon = UiUtils.GetIcon(iconId);
+                var icon = Services.ImageHandler.GetIcon(iconId);
                 if (icon is not null) {
                     var path = icon.FilePath;
-                    var handle = UiUtils.DisplayTex(icon);
+                    var handle = Services.ImageHandler.DisplayTex(icon);
                     if (handle == IntPtr.Zero) break;
 
                     var size = new Vector2(icon.Header.Width, icon.Header.Height);
@@ -322,11 +372,14 @@ public class ExcelModule : Module {
                 var thisRow = this._selectedSheet!.GetRow((uint)row)!;
 
                 for (var i = 0; i < this._selectedSheet!.ColumnCount; i++) {
+                    if (!this._sheetDefinitions.ContainsKey(this._selectedSheet.Name)) continue;
                     var sheetDef = this._sheetDefinitions[this._selectedSheet.Name];
                     if (sheetDef is null) continue;
+
                     var colName = sheetDef.GetNameForColumn(i);
                     var colValue = thisRow.ReadColumnRaw(i);
                     if (colName is null || colValue is null) continue;
+
                     keyValues[colName] = colValue;
                 }
 
@@ -390,22 +443,19 @@ public class ExcelModule : Module {
         this._filteredRows = new();
 
         var colCount = this._selectedSheet.ColumnCount;
-        foreach (var row in this._selectedSheet) {
-            var shouldAdd = false;
+        for (var i = 0u; i < this._selectedSheet.RowCount; i++) {
+            var row = this.GetRow(i);
+            if (row is null) continue;
+
             for (var col = 0; col < colCount; col++) {
                 var obj = row.ReadColumnRaw(col);
-                if (obj is null) continue;
-                var str = obj.ToString();
+                var str = obj?.ToString();
                 if (str is null) continue;
 
                 if (str.ToLower().Contains(this._contentFilter.ToLower())) {
-                    shouldAdd = true;
+                    this._filteredRows.Add(i);
                     break;
                 }
-            }
-
-            if (shouldAdd) {
-                this._filteredRows.Add(row.RowId);
             }
         }
     }

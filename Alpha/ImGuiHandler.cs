@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using ImGuiNET;
 using Veldrid;
@@ -52,10 +53,7 @@ public class ImGuiHandler : IDisposable {
         unsafe {
             var path = Path.Combine(Program.DataDirectory, "imgui.ini");
             File.Create(path).Dispose();
-
-            fixed (byte* p = Encoding.UTF8.GetBytes(path)) {
-                io.NativePtr->IniFilename = p;
-            }
+            io.NativePtr->IniFilename = (byte*)Marshal.StringToHGlobalAnsi(path).ToPointer();
         }
 
         this.CreateDeviceResources();
@@ -344,7 +342,8 @@ public class ImGuiHandler : IDisposable {
                     if (pcmd.TextureId == FontAtlasId) {
                         cl.SetGraphicsResourceSet(1, this._fontTextureResourceSet);
                     } else {
-                        cl.SetGraphicsResourceSet(1, this.GetImageResourceSet(pcmd.TextureId));
+                        var imageResourceSet = this.GetImageResourceSet(pcmd.TextureId);
+                        if (imageResourceSet != null) cl.SetGraphicsResourceSet(1, imageResourceSet);
                     }
                 }
 
@@ -452,9 +451,9 @@ public class ImGuiHandler : IDisposable {
         return this.GetOrCreateImGuiBinding(factory, textureView);
     }
 
-    public ResourceSet GetImageResourceSet(IntPtr imGuiBinding) {
+    public ResourceSet? GetImageResourceSet(IntPtr imGuiBinding) {
         if (!this._viewsById.TryGetValue(imGuiBinding, out var tvi)) {
-            throw new InvalidOperationException();
+            return null;
         }
 
         return tvi.Item2;
@@ -462,5 +461,18 @@ public class ImGuiHandler : IDisposable {
 
     private IntPtr GetNextImGuiBindingId() {
         return this._lastAssignedId++;
+    }
+
+    public void DisposeAllTextures() {
+        foreach (var d in this._ownedResources) {
+            d.Dispose();
+        }
+
+        this._ownedResources.Clear();
+        this._autoViewsByTexture.Clear();
+        this._setsByView.Clear();
+        this._viewsById.Clear();
+
+        this._lastAssignedId = 100;
     }
 }
