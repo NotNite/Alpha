@@ -1,0 +1,24 @@
+on: [push, pull_request]
+
+name: Nightly builds
+
+jobs:
+    windows:
+        name: Windows nightly builds
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v3
+            - uses: actions/setup-dotnet@v3
+              with:
+                  dotnet-version: 7.0.x
+            - name: Install dependencies
+              run: dotnet restore
+            - name: Build
+              run: dotnet build --configuration Release --no-restore
+            - name: Publish
+              run: dotnet publish Alpha/Alpha.csproj --self-contained false --output ./artifacts
+            - name: Upload artifacts
+              uses: actions/upload-artifact@v3
+              with:
+                  name: windows-nightly
+                  path: ./artifacts/Alpha.exe
