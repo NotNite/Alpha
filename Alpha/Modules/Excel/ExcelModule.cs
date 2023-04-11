@@ -188,11 +188,7 @@ public class ExcelModule : Module {
                 if (obj != null) {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
 
-                    try {
-                        this.DrawEntry((int)row.RowId, col, obj, converter);
-                    } catch {
-                        // If it fails to draw, just shrug off and ignore it. Got it? Got it.
-                    }
+                    this.DrawEntry((int)row.RowId, col, obj, converter);
                 }
 
                 if (col < colCount - 1) ImGui.TableNextColumn();
@@ -217,9 +213,18 @@ public class ExcelModule : Module {
     }
 
     private void DrawEntry(int row, int col, object data, ConverterDefinition? converter) {
+        // Spam try/catch here because we don't want to throw an error mid ImGui frame
+        // No idea why conversions fail sometimes
+
         switch (converter) {
             case LinkConverterDefinition link when link.Target != null: {
-                var targetRow = Convert.ToInt32(data);
+                var targetRow = 0;
+                try {
+                    targetRow = Convert.ToInt32(data);
+                } catch {
+                    // ignored
+                }
+
                 var text = $"{link.Target}#{targetRow}" + $"##{row}_{col}";
 
                 if (ImGui.Button(text)) {
@@ -230,7 +235,13 @@ public class ExcelModule : Module {
             }
 
             case IconConverterDefinition: {
-                var iconId = Convert.ToUInt32(data);
+                var iconId = 0u;
+                try {
+                    iconId = Convert.ToUInt32(data);
+                } catch {
+                    // ignored
+                }
+
                 var icon = Services.GameData.GetIcon(iconId);
                 if (icon is not null) {
                     var handle = UiUtils.DisplayTex(icon);
@@ -262,7 +273,14 @@ public class ExcelModule : Module {
                 ImGui.TextUnformatted(str);
 
                 if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
-                    if (Services.GameData.FileExists(str) && ImGui.MenuItem("Open in filesystem browser")) {
+                    var fileExists = false;
+                    try {
+                        fileExists = Services.GameData.FileExists(str);
+                    } catch {
+                        // ignored
+                    }
+
+                    if (fileExists && ImGui.MenuItem("Open in filesystem browser")) {
                         Services.ModuleManager.GetModule<FilesystemModule>().OpenFile(str);
                     }
 
