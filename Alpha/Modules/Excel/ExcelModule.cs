@@ -14,6 +14,7 @@ public class ExcelModule : Module {
     private float _sidebarWidth = 300f;
     private string _sidebarFilter = string.Empty;
     private string _contentFilter = string.Empty;
+    private List<uint>? _filteredRows;
 
     private string[] _sheets;
     private RawExcelSheet? _selectedSheet;
@@ -120,7 +121,20 @@ public class ExcelModule : Module {
         ImGui.SameLine();
         ImGui.SetCursorPosY(temp);
 
-        if (this._selectedSheet != null) this.DrawTable();
+        ImGui.BeginGroup();
+        if (this._selectedSheet != null) {
+            var width = ImGui.GetContentRegionAvail().X;
+
+            ImGui.SetNextItemWidth(width);
+            if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024)) {
+                this.ResolveFilter();
+            }
+
+            ImGui.SetNextItemWidth(width);
+            this.DrawTable();
+        }
+
+        ImGui.EndGroup();
     }
 
     private void DrawTable() {
@@ -150,9 +164,11 @@ public class ExcelModule : Module {
 
         ImGui.TableHeadersRow();
 
-        var clipper = new ListClipper((int)rowCount);
+        var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
+        var clipper = new ListClipper(actualRowCount);
         foreach (var i in clipper.Rows) {
-            var row = this._selectedSheet.GetRow((uint)i);
+            var actualIndex = this._filteredRows?[i] ?? (uint)i;
+            var row = this._selectedSheet.GetRow(actualIndex);
             if (row is null) continue;
 
             ImGui.TableNextRow();
@@ -168,7 +184,11 @@ public class ExcelModule : Module {
                 if (obj != null) {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
 
-                    this.DrawEntry((int)row.RowId, col, obj, converter);
+                    try {
+                        this.DrawEntry((int)row.RowId, col, obj, converter);
+                    } catch {
+                        // If it fails to draw, just shrug off and ignore it. Got it? Got it.
+                    }
                 }
 
                 if (col < colCount - 1) ImGui.TableNextColumn();
@@ -246,6 +266,40 @@ public class ExcelModule : Module {
                 }
 
                 break;
+            }
+        }
+    }
+
+    private void ResolveFilter() {
+        if (string.IsNullOrEmpty(this._contentFilter)) {
+            this._filteredRows = null;
+            return;
+        }
+
+        if (this._selectedSheet is null) {
+            this._filteredRows = null;
+            return;
+        }
+
+        this._filteredRows = new();
+
+        var colCount = this._selectedSheet.ColumnCount;
+        foreach (var row in this._selectedSheet) {
+            var shouldAdd = false;
+            for (var col = 0; col < colCount; col++) {
+                var obj = row.ReadColumnRaw(col);
+                if (obj is null) continue;
+                var str = obj.ToString();
+                if (str is null) continue;
+
+                if (str.ToLower().Contains(this._contentFilter.ToLower())) {
+                    shouldAdd = true;
+                    break;
+                }
+            }
+
+            if (shouldAdd) {
+                this._filteredRows.Add(row.RowId);
             }
         }
     }
