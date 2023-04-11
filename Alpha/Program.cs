@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using Alpha.Modules;
 using ImGuiNET;
 using NativeFileDialogSharp;
 using Serilog;
@@ -168,6 +169,9 @@ public class Program {
                     Services.Configuration.Save();
                 }
 
+                ImGui.MenuItem("Open settings", null,
+                    ref Services.ModuleManager.GetModule<SettingsModule>().WindowOpen);
+
                 if (ImGui.MenuItem("Exit")) {
                     Window.Close();
                 }
@@ -183,7 +187,11 @@ public class Program {
 
             if (ImGui.BeginMenu("Modules")) {
                 var modules = Services.ModuleManager.GetModules();
-                var categories = modules.Select(m => m.Category).Distinct().ToList();
+                var categories = modules
+                    .Select(m => m.Category)
+                    .Where(c => c is not null)
+                    .Select(c => c!)
+                    .Distinct().ToList();
 
                 foreach (var category in categories) {
                     if (ImGui.BeginMenu(category)) {

@@ -25,15 +25,17 @@ public static class UiUtils {
     private static Dictionary<string, nint> _textureCache = new();
 
     public static TexFile? GetIcon(uint id) {
-        var path = $"ui/icon/{id / 1000 * 1000:000000}/{id:000000}.tex";
+        var nqPath = $"ui/icon/{id / 1000 * 1000:000000}/{id:000000}.tex";
         var hqPath = $"ui/icon/{id / 1000 * 1000:000000}/{id:000000}_hr1.tex";
+        var tryOrder = Services.Configuration.PreferHr1 ? new[] { hqPath, nqPath } : new[] { nqPath, hqPath };
 
         string? usedPath = null;
         try {
-            if (Services.GameData.FileExists(hqPath)) {
-                usedPath = hqPath;
-            } else if (Services.GameData.FileExists(path)) {
-                usedPath = path;
+            foreach (var p in tryOrder) {
+                if (Services.GameData.FileExists(p)) {
+                    usedPath = p;
+                    break;
+                }
             }
         } catch {
             // Lumina likes to throw errors on FileExists for some reason, so let's just ignore it

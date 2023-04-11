@@ -9,6 +9,8 @@ public class Configuration {
 
     public bool AutoPaths { get; set; }
     public bool AutoCurrentPaths { get; set; }
+    
+    public bool PreferHr1 { get; set; } = true;
 
     public int WindowX { get; set; } = 100;
     public int WindowY { get; set; } = 100;

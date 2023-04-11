@@ -4,12 +4,12 @@ namespace Alpha.Core;
 
 public class Module {
     public readonly string Name;
-    public readonly string Category;
+    public readonly string? Category;
 
     public bool WindowOpen;
     public ImGuiWindowFlags WindowFlags = ImGuiWindowFlags.None;
 
-    protected Module(string name, string category) {
+    protected Module(string name, string? category = null) {
         this.Name = name;
         this.Category = category;
     }
