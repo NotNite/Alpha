@@ -245,7 +245,7 @@ public class ExcelModule : Module {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
 
                     var prev = ImGui.GetCursorPosY();
-                    this.DrawEntry((int)row.RowId, col, obj, converter);
+                    this.DrawEntry(i, col, obj, converter);
                     var next = ImGui.GetCursorPosY();
 
                     var height = next - prev;
