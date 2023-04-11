@@ -216,6 +216,14 @@ public class ExcelModule : Module {
         for (var i = 0; i < colCount; i++) {
             var colName = sheetDefinition?.GetNameForColumn(i) ?? i.ToString();
             ImGui.TableSetupColumn(colName);
+
+            var hovered = ImGui.TableGetColumnFlags(i + 1).HasFlag(ImGuiTableColumnFlags.IsHovered);
+            if (hovered) {
+                ImGui.BeginTooltip();
+                var offset = this._selectedSheet.Columns[i].Offset;
+                ImGui.TextUnformatted($"Offset: {offset} (0x{offset:X})\nIndex: {i}");
+                ImGui.EndTooltip();
+            }
         }
 
         ImGui.TableHeadersRow();

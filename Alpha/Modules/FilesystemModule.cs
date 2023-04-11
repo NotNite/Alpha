@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using Alpha.Core;
+using Alpha.Modules.Excel;
 using Alpha.Utils;
 using ImGuiNET;
 using Lumina.Data;
@@ -108,6 +109,15 @@ public class FilesystemModule : Module {
 
                 // TODO unix support
                 Process.Start("explorer.exe", $"\"{tempFile}\"");
+            }
+
+            if (this._selectedPath.EndsWith("exh")) {
+                if (ImGui.Button("Open in Excel browser")) {
+                    var path = this._selectedPath
+                        .Replace("exd/", string.Empty)
+                        .Replace(".exh", string.Empty);
+                    Services.ModuleManager.GetModule<ExcelModule>().OpenSheet(path);
+                }
             }
 
             if (this._selectedPath.EndsWith("tex")) {
