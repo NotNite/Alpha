@@ -67,6 +67,11 @@ public class ExcelModule : Module {
         this._itemHeight = 0f;
     }
 
+    public void ReloadAllSheets() {
+        this._sheetsCache.Clear();
+        this._selectedSheet = this.GetSheet(this._selectedSheet!.Name);
+    }
+
     private void ResolveSheetDefinition() {
         var sheetName = this._selectedSheet!.Name;
         if (this._sheetDefinitions.ContainsKey(sheetName)) return;

@@ -22,7 +22,8 @@ public static class Services {
     public static void InitPostSetup() {
         var sqpackDir = Path.Combine(Configuration.GamePath!, "game", "sqpack");
         GameData = new GameData(sqpackDir, new LuminaOptions {
-            PanicOnSheetChecksumMismatch = false
+            PanicOnSheetChecksumMismatch = false,
+            DefaultExcelLanguage = Configuration.ExcelLanguage
         });
 
         ModuleManager = new ModuleManager();

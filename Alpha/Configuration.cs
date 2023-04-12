@@ -1,10 +1,12 @@
 ﻿using System.Text.Json;
+using Lumina.Data;
 
 namespace Alpha;
 
 [Serializable]
 public class Configuration {
     public string? GamePath { get; set; }
+    public Language ExcelLanguage { get; set; } = Language.English;
     public bool DrawImGuiDemo { get; set; }
 
     public bool AutoPaths { get; set; }
