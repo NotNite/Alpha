@@ -21,13 +21,13 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
         this.Sheets = Services.GameData.Excel.GetSheetNames().ToArray();
     }
 
-    public RawExcelSheet? GetSheet(string name) {
+    public RawExcelSheet? GetSheet(string name, bool skipDefinition = false) {
         if (this.SheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
         sheet = Services.GameData.Excel.GetSheetRaw(name);
         this.SheetsCache[name] = sheet;
 
-        if (!this.SheetDefinitions.ContainsKey(name)) {
+        if (!skipDefinition && !this.SheetDefinitions.ContainsKey(name)) {
             this.ResolveSheetDefinition(name);
         }
 
@@ -281,5 +281,13 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                 ImGui.EndTooltip();
             }
         }
+    }
+
+    public string DisplayObject(object obj) {
+        if (obj is SeString seString) {
+            return UiUtils.DisplaySeString(seString);
+        }
+
+        return obj.ToString() ?? "";
     }
 }

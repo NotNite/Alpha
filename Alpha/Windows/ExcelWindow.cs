@@ -19,11 +19,15 @@ public class ExcelWindow : Window {
     private Dictionary<uint, (uint, uint?)> _rowMapping = new(); // Working around a Lumina bug to map index to row
 
     private float _sidebarWidth = 300f;
+    private bool _fullTextSearch;
+
     private string _sidebarFilter = string.Empty;
     private string _contentFilter = string.Empty;
+    private List<string>? _filteredSheets;
     private List<uint>? _filteredRows;
 
     private CancellationTokenSource? _scriptToken;
+    private CancellationTokenSource? _sidebarToken;
     private string? _scriptError;
 
     private int? _tempScroll;
@@ -56,8 +60,8 @@ public class ExcelWindow : Window {
         this._filteredRows = null;
         this._itemHeight = null;
 
-        this.SetupRows();
-        this.ResolveFilter();
+        this._rowMapping = this.SetupRows(sheet);
+        this.ResolveContentFilter();
     }
 
     // TODO deduplicate this code from fs module
@@ -68,7 +72,7 @@ public class ExcelWindow : Window {
 
         if (this._selectedSheet is not null) {
             var width = ImGui.GetContentRegionAvail().X;
-            this.DrawFilter(width);
+            this.DrawContentFilter(width);
             this.DrawSheet(width);
         }
 
@@ -77,16 +81,13 @@ public class ExcelWindow : Window {
 
     private void DrawSidebar() {
         var temp = ImGui.GetCursorPosY();
-        ImGui.SetNextItemWidth(this._sidebarWidth);
-        ImGui.InputText("##ExcelFilter", ref this._sidebarFilter, 1024);
+        this.DrawSidebarFilter(this._sidebarWidth);
 
         var cra = ImGui.GetContentRegionAvail();
         ImGui.BeginChild("##ExcelModule_Sidebar", cra with { X = this._sidebarWidth }, true);
 
-        foreach (var sheet in this._module.Sheets) {
-            if (!string.IsNullOrEmpty(this._sidebarFilter) &&
-                !sheet.Contains(this._sidebarFilter, StringComparison.OrdinalIgnoreCase)) continue;
-
+        var sheets = this._filteredSheets?.ToArray() ?? this._module.Sheets;
+        foreach (var sheet in sheets) {
             if (ImGui.Selectable(sheet, sheet == this._selectedSheet?.Name)) {
                 this.OpenSheet(sheet);
             }
@@ -103,7 +104,35 @@ public class ExcelWindow : Window {
         ImGui.SetCursorPosY(temp);
     }
 
-    private void DrawFilter(float width) {
+    private void DrawSidebarFilter(float width) {
+        ImGui.SetNextItemWidth(width);
+
+        var shouldOrange = this._fullTextSearch;
+        if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(1f, 0.5f, 0f, 0.5f));
+
+        var flags = this._fullTextSearch ? ImGuiInputTextFlags.EnterReturnsTrue : ImGuiInputTextFlags.None;
+        if (ImGui.InputText("##ExcelFilter", ref this._sidebarFilter, 1024, flags)) {
+            this.ResolveSidebarFilter();
+        }
+
+        if (ImGui.IsItemHovered()) {
+            ImGui.BeginTooltip();
+            var filterMode = this._fullTextSearch ? "Full text search" : "Name search";
+            ImGui.TextUnformatted(
+                $"Current filter mode: {filterMode}\n"
+                + "Right click to change the filter mode.");
+
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Right)) {
+                this._fullTextSearch = !this._fullTextSearch;
+            }
+
+            ImGui.EndTooltip();
+        }
+
+        if (shouldOrange) ImGui.PopStyleColor();
+    }
+
+    private void DrawContentFilter(float width) {
         ImGui.SetNextItemWidth(width);
 
         var shouldRed = this._scriptError is not null;
@@ -111,15 +140,17 @@ public class ExcelWindow : Window {
         var shouldOrange = this._scriptToken is not null && !shouldRed;
         if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0f, 1f));
 
-        var flags = ImGuiInputTextFlags.EnterReturnsTrue;
+        var flags = this._contentFilter.StartsWith("$")
+            ? ImGuiInputTextFlags.EnterReturnsTrue
+            : ImGuiInputTextFlags.None;
         if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024, flags)) {
-            this.ResolveFilter();
+            this.ResolveContentFilter();
         }
 
         // Disable filter on right click
         if (ImGui.IsItemHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Right)) {
             this._contentFilter = string.Empty;
-            this.ResolveFilter();
+            this.ResolveContentFilter();
         }
 
         if (shouldRed) {
@@ -202,7 +233,7 @@ public class ExcelWindow : Window {
                 rowId = (int)this._filteredRows[i];
             }
 
-            var row = this.GetRow((uint)rowId);
+            var row = this.GetRow(this._selectedSheet, this._rowMapping, (uint)rowId);
             if (row is null) {
                 ImGui.TableNextRow();
                 continue;
@@ -270,9 +301,8 @@ public class ExcelWindow : Window {
     }
 
     // Mapping index to row/subrow ID, since they are not linear
-    private void SetupRows() {
-        var sheet = this._selectedSheet;
-        if (sheet is null) return;
+    private Dictionary<uint, (uint, uint?)> SetupRows(RawExcelSheet sheet) {
+        var rowMapping = new Dictionary<uint, (uint, uint?)>();
 
         var currentRow = 0u;
         foreach (var page in sheet.DataPages) {
@@ -282,24 +312,26 @@ public class ExcelWindow : Window {
 
                 if (sheet.Header.Variant == ExcelVariant.Subrows) {
                     for (uint i = 0; i < parser.RowCount; i++) {
-                        this._rowMapping[currentRow] = (row.RowId, i);
+                        rowMapping[currentRow] = (row.RowId, i);
                         currentRow++;
                     }
                 } else {
-                    this._rowMapping[currentRow] = (row.RowId, null);
+                    rowMapping[currentRow] = (row.RowId, null);
                     currentRow++;
                 }
             }
         }
+
+        return rowMapping;
     }
 
     // Building a new RowParser every time is probably not the best idea, but doesn't seem to impact performance that hard
-    private RowParser? GetRow(uint index) {
-        var sheet = this._selectedSheet;
-        if (sheet is null) return null;
-
-        var (row, subrow) = this._rowMapping[index];
-
+    private RowParser? GetRow(
+        RawExcelSheet sheet,
+        Dictionary<uint, (uint, uint?)> rowMapping,
+        uint index
+    ) {
+        var (row, subrow) = rowMapping[index];
         var page = sheet.DataPages.FirstOrDefault(x => x.File.RowData.ContainsKey(row));
         if (page is null) return null;
 
@@ -313,8 +345,8 @@ public class ExcelWindow : Window {
         return parser;
     }
 
-    private void ResolveFilter() {
-        Log.Debug("Resolving filter...");
+    private void ResolveContentFilter() {
+        Log.Debug("Resolving content filter...");
 
         // clean up scripts
         if (this._scriptToken is not null && !this._scriptToken.IsCancellationRequested) {
@@ -338,25 +370,25 @@ public class ExcelWindow : Window {
         this._filteredRows = new();
         if (this._contentFilter.StartsWith("$")) {
             var script = this._contentFilter[1..];
-            this.FilterScript(script);
+            this.ContentFilterScript(script);
         } else {
-            this.FilterSimple(this._contentFilter);
+            this.ContentFilterSimple(this._contentFilter);
         }
 
         this._itemHeight = 0;
         Log.Debug("Filter resolved!");
     }
 
-    private void FilterSimple(string filter) {
+    private void ContentFilterSimple(string filter) {
         var colCount = this._selectedSheet!.ColumnCount;
         for (var i = 0u; i < this._selectedSheet.RowCount; i++) {
-            var row = this.GetRow(i);
+            var row = this.GetRow(this._selectedSheet, this._rowMapping, i);
             if (row is null) continue;
 
             for (var col = 0; col < colCount; col++) {
                 var obj = row.ReadColumnRaw(col);
-                var str = obj?.ToString();
-                if (str is null) continue;
+                if (obj is null) continue;
+                var str = this._module.DisplayObject(obj);
 
                 if (str.ToLower().Contains(filter.ToLower())) {
                     this._filteredRows!.Add(i);
@@ -366,7 +398,7 @@ public class ExcelWindow : Window {
         }
     }
 
-    private void FilterScript(string script) {
+    private void ContentFilterScript(string script) {
         this._scriptError = null;
 
         // picked a random type for this, doesn't really matter
@@ -400,7 +432,7 @@ public class ExcelWindow : Window {
                         return;
                     }
 
-                    var row = this.GetRow(i);
+                    var row = this.GetRow(this._selectedSheet, this._rowMapping, i);
                     if (row is null) continue;
                     var i1 = i;
 
@@ -450,9 +482,70 @@ public class ExcelWindow : Window {
 
             Log.Debug("Filter script finished");
             this._scriptToken = null;
-            ct.Dispose();
         }, ct.Token);
 
         this._scriptToken = ct;
+    }
+
+    private void ResolveSidebarFilter() {
+        Log.Debug("Resolving sidebar filter...");
+
+        if (this._sidebarToken is not null && !this._sidebarToken.IsCancellationRequested) {
+            this._sidebarToken.Cancel();
+            this._sidebarToken.Dispose();
+            this._sidebarToken = null;
+        }
+
+        if (string.IsNullOrEmpty(this._sidebarFilter)) {
+            this._filteredSheets = null;
+            return;
+        }
+
+        var filter = this._sidebarFilter.ToLower();
+        if (this._fullTextSearch) {
+            this._filteredSheets = new();
+
+            var ct = new CancellationTokenSource();
+            Task.Run(() => {
+                foreach (var sheetName in this._module.Sheets) {
+                    var sheet = this._module.GetSheet(sheetName, true);
+                    if (sheet is null) continue;
+
+                    if (this._filteredSheets.Contains(sheetName)) continue;
+
+                    var rowMapping = this.SetupRows(sheet);
+                    var colCount = sheet.ColumnCount;
+
+                    var found = false;
+                    foreach (var rowId in rowMapping.Keys) {
+                        if (found) break;
+
+                        var row = this.GetRow(sheet, rowMapping, rowId);
+                        if (row is null) continue;
+
+                        for (var col = 0; col < colCount; col++) {
+                            if (ct.IsCancellationRequested) {
+                                Log.Debug("Sidebar filter cancelled - aborting");
+                                return;
+                            }
+
+                            var obj = row.ReadColumnRaw(col);
+                            if (obj is null) continue;
+                            var str = this._module.DisplayObject(obj);
+
+                            if (str.ToLower().Contains(filter)) {
+                                this._filteredSheets.Add(sheetName);
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }, ct.Token);
+        } else {
+            this._filteredSheets = this._module.Sheets
+                .Where(x => x.ToLower().Contains(filter))
+                .ToList();
+        }
     }
 }
