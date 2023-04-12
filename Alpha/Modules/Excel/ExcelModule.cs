@@ -152,9 +152,9 @@ public class ExcelModule : Module {
             ImGui.SetNextItemWidth(width);
 
             var shouldRed = this._scriptError is not null;
-            if (shouldRed) ImGui.PushStyleColor(ImGuiCol.Text, 0xFF0000FF);
+            if (shouldRed) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0f, 0f, 1f));
             var shouldOrange = this._cancellationToken is not null && !shouldRed;
-            if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, 0xFFA500FF);
+            if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0f, 1f));
 
             var flags = ImGuiInputTextFlags.EnterReturnsTrue;
             if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024, flags)) {
