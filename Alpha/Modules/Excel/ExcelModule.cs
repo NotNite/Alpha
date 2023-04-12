@@ -150,8 +150,12 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                             Services.ModuleManager.GetModule<FilesystemModule>().OpenFile(path);
                         }
 
-                        if (ImGui.MenuItem("Save")) {
+                        if (ImGui.MenuItem("Save (.tex)")) {
                             FileUtils.Save(icon.Data, "tex");
+                        }
+
+                        if (ImGui.MenuItem("Save (.png)")) {
+                            UiUtils.ExportPng(icon);
                         }
 
                         ImGui.EndPopup();

@@ -121,6 +121,11 @@ public class FilesystemWindow : Window {
             if (this._selectedPath.EndsWith("tex")) {
                 var texFile = (TexFile)this._selectedFile;
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
+
+                if (ImGui.Button("Export as .png")) {
+                    UiUtils.ExportPng(texFile);
+                }
+                
                 ImGui.Image(Services.ImageHandler.DisplayTex(texFile), size);
             }
         }

@@ -1,13 +1,10 @@
 ﻿using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Text;
 using ImGuiNET;
 using Lumina.Data.Files;
 using Lumina.Text;
 using Lumina.Text.Expressions;
 using Lumina.Text.Payloads;
-using Serilog;
-using Veldrid;
 
 namespace Alpha.Utils;
 
@@ -23,6 +20,12 @@ public static class UiUtils {
         }
     }
 
+    public static void ExportPng(TexFile tex) {
+        var img = Image.LoadPixelData<Bgra32>(tex.ImageData, tex.Header.Width, tex.Header.Height);
+        var bytes = new MemoryStream();
+        img.SaveAsPng(bytes);
+        FileUtils.Save(bytes.ToArray(), "png");
+    }
 
     // Not a very good place for this...
     // Taken from Kizer - thanks!
