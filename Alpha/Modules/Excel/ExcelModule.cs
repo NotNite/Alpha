@@ -10,7 +10,6 @@ using Lumina.Text;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Serilog;
 using Module = Alpha.Core.Module;
-using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace Alpha.Modules.Excel;
 
@@ -497,9 +496,10 @@ public class ExcelModule : Module {
         Log.Debug("Resolving filter...");
 
         // clean up scripts
-        if (this._cancellationToken is not null) {
+        if (this._cancellationToken is not null && !this._cancellationToken.IsCancellationRequested) {
             this._cancellationToken.Cancel();
             this._cancellationToken.Dispose();
+            this._cancellationToken = null;
         }
 
         this._scriptError = null;
