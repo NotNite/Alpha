@@ -41,5 +41,12 @@ public class SettingsModule : Module {
             Services.GameData.Options.DefaultExcelLanguage = Services.Configuration.ExcelLanguage;
             Services.ModuleManager.GetModule<ExcelModule>().ReloadAllSheets();
         }
+
+        var fpsLimit = Services.Configuration.FpsLimit;
+        if (ImGui.InputFloat("Framerate limit", ref fpsLimit)) {
+            Services.Configuration.FpsLimit = MathF.Max(20.0f, fpsLimit);
+            Program.FpsLimit = MathF.Max(20.0f, fpsLimit);
+            Services.Configuration.Save();
+        }
     }
 }

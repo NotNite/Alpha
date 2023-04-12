@@ -29,6 +29,8 @@ public class Program {
 
     private static ProgramState _state = ProgramState.Main;
 
+    public static float FpsLimit = 60.0f;
+
     private enum ProgramState {
         Setup,
         Main
@@ -71,13 +73,15 @@ public class Program {
 
         var commandList = GraphicsDevice.ResourceFactory.CreateCommandList();
         ImGuiHandler = new ImGuiHandler(Window, GraphicsDevice);
+        
+        FpsLimit = Services.Configuration.FpsLimit;
 
         var stopwatch = Stopwatch.StartNew();
         var imageStopwatch = Stopwatch.StartNew();
 
         while (Window.Exists) {
             var deltaTime = stopwatch.ElapsedTicks / (float)Stopwatch.Frequency;
-            if (deltaTime < 1f / 60f) continue; // shitty FPS limiter
+            if (deltaTime < 1f / FpsLimit) continue; // shitty FPS limiter
             stopwatch.Restart();
 
             var snapshot = Window.PumpEvents();
@@ -107,7 +111,7 @@ public class Program {
         ImGuiHandler.Dispose();
         GraphicsDevice.Dispose();
         Window.Close();
-
+        
         Services.Configuration.WindowWidth = Window.Width;
         Services.Configuration.WindowHeight = Window.Height;
         Services.Configuration.WindowX = Window.X;

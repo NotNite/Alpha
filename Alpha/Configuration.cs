@@ -19,6 +19,8 @@ public class Configuration {
     public int WindowWidth { get; set; } = 1280;
     public int WindowHeight { get; set; } = 720;
 
+    public float FpsLimit { get; set; } = 60.0f;
+
     public void Save() {
         var path = Path.Combine(Program.DataDirectory, "config.json");
         var serialized = JsonSerializer.Serialize(this);
