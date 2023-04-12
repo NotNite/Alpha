@@ -48,6 +48,7 @@ public class ImGuiHandler : IDisposable {
 
         var io = ImGui.GetIO();
         io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
+        io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
 
         // Why the hell does this require an unsafe block, I'll never know
         unsafe {
