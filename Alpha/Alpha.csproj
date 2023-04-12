@@ -12,6 +12,7 @@
         <PackageReference Include="ImGui.NET" Version="1.89.4" />
         <PackageReference Include="Lumina" Version="3.10.2" />
         <PackageReference Include="Lumina.Excel" Version="6.3.2" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.6.0-1.final" />
         <PackageReference Include="NativeFileDialogSharp" Version="0.6.0-alpha" />
         <PackageReference Include="Serilog" Version="3.0.0-dev-01958" />
         <PackageReference Include="Serilog.Sinks.Console" Version="4.1.1-dev-00910" />

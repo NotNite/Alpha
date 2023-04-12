@@ -1,12 +1,15 @@
 ﻿using System.Numerics;
+using System.Reflection;
 using System.Text.Json;
-using Alpha.Core;
 using Alpha.Utils;
 using ImGuiNET;
+using Lumina;
 using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
 using Lumina.Text;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Serilog;
+using Module = Alpha.Core.Module;
 
 namespace Alpha.Modules.Excel;
 
@@ -26,6 +29,9 @@ public class ExcelModule : Module {
     private HttpClient _httpClient = new();
     private readonly Dictionary<string, RawExcelSheet?> _sheetsCache = new();
     private readonly Dictionary<string, SheetDefinition?> _sheetDefinitions = new();
+
+    private List<CancellationTokenSource> _cancellationTokens = new();
+    private string? _scriptError;
 
     private int? _tempScroll;
     private int _paintTicksLeft = -1;
@@ -60,6 +66,7 @@ public class ExcelModule : Module {
         Log.Debug("Opening sheet: {name}", name);
 
         this._selectedSheet = sheet;
+        this._filteredRows = null;
         this.ResolveSheetDefinition();
         this.SetupRows();
 
@@ -141,10 +148,23 @@ public class ExcelModule : Module {
         ImGui.BeginGroup();
         if (this._selectedSheet != null) {
             var width = ImGui.GetContentRegionAvail().X;
-
             ImGui.SetNextItemWidth(width);
-            if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024)) {
+
+            var shouldRed = this._scriptError is not null;
+            if (shouldRed) ImGui.PushStyleColor(ImGuiCol.Text, 0xFF0000FF);
+
+            var flags = ImGuiInputTextFlags.EnterReturnsTrue;
+            if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024, flags)) {
                 this.ResolveFilter();
+            }
+
+            if (shouldRed) {
+                ImGui.PopStyleColor();
+                if (ImGui.IsItemHovered()) {
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted(this._scriptError ?? "Unknown error");
+                    ImGui.EndTooltip();
+                }
             }
 
             ImGui.SetNextItemWidth(width);
@@ -239,14 +259,20 @@ public class ExcelModule : Module {
 
         var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
         var clipper = new ListClipper(actualRowCount, itemHeight: this._itemHeight);
-        var newHeight = 0f;
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
+        var newHeight = 0f;
         foreach (var i in clipper.Rows) {
-            var row = this._filteredRows is not null
-                ? this.GetRow(this._filteredRows[i])
-                : this.GetRow((uint)i);
-            if (row is null) continue;
+            var rowId = i;
+            if (this._filteredRows is not null) {
+                rowId = (int)this._filteredRows[i];
+            }
+
+            var row = this.GetRow((uint)rowId);
+            if (row is null) {
+                ImGui.TableNextRow();
+                continue;
+            }
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
@@ -262,7 +288,7 @@ public class ExcelModule : Module {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
 
                     var prev = ImGui.GetCursorPosY();
-                    this.DrawEntry(i, col, obj, converter);
+                    this.DrawEntry(rowId, col, obj, converter);
                     var next = ImGui.GetCursorPosY();
 
                     var height = next - prev;
@@ -458,8 +484,23 @@ public class ExcelModule : Module {
         }
 
         this._filteredRows = new();
+        foreach (var ct in this._cancellationTokens) {
+            ct.Cancel();
+        }
 
-        var colCount = this._selectedSheet.ColumnCount;
+        this._scriptError = null;
+        if (this._contentFilter.StartsWith("$")) {
+            var script = this._contentFilter[1..];
+            this.FilterScript(script);
+        } else {
+            this.FilterSimple(this._contentFilter);
+        }
+
+        this._itemHeight = 0;
+    }
+
+    private void FilterSimple(string filter) {
+        var colCount = this._selectedSheet!.ColumnCount;
         for (var i = 0u; i < this._selectedSheet.RowCount; i++) {
             var row = this.GetRow(i);
             if (row is null) continue;
@@ -469,11 +510,82 @@ public class ExcelModule : Module {
                 var str = obj?.ToString();
                 if (str is null) continue;
 
-                if (str.ToLower().Contains(this._contentFilter.ToLower())) {
-                    this._filteredRows.Add(i);
+                if (str.ToLower().Contains(filter.ToLower())) {
+                    this._filteredRows!.Add(i);
                     break;
                 }
             }
         }
+    }
+
+    private void FilterScript(string script) {
+        // picked a random type for this, doesn't really matter
+        var luminaTypes = Assembly.GetAssembly(typeof(Lumina.Excel.GeneratedSheets.Addon))?.GetTypes();
+        var sheets = luminaTypes?
+            .Where(t => t.GetCustomAttributes(typeof(SheetAttribute), false).Length > 0)
+            .ToDictionary(t => ((SheetAttribute)t.GetCustomAttributes(typeof(SheetAttribute), false)[0]).Name);
+
+        Type? sheetRow = null;
+        if (sheets?.TryGetValue(this._selectedSheet!.Name, out var sheetType) == true) {
+            sheetRow = sheetType;
+        }
+
+        // GameData.GetExcelSheet<T>();
+        var getExcelSheet = typeof(GameData).GetMethod("GetExcelSheet", Type.EmptyTypes);
+        var genericMethod = sheetRow is not null ? getExcelSheet?.MakeGenericMethod(sheetRow) : null;
+        var sheetInstance = genericMethod?.Invoke(Services.GameData, Array.Empty<object>());
+
+        var ct = new CancellationTokenSource();
+        Task.Run(async () => {
+            for (var i = 0u; i < this._selectedSheet!.RowCount; i++) {
+                var row = this.GetRow(i);
+                if (row is null) continue;
+                var i1 = i;
+
+                async void SimpleEval() {
+                    try {
+                        var res = await CSharpScript.EvaluateAsync<bool>(script, cancellationToken: ct.Token);
+                        if (res) this._filteredRows?.Add(i1);
+                    } catch (Exception e) {
+                        this._scriptError = e.Message;
+                    }
+                }
+
+                if (sheetRow is null) {
+                    SimpleEval();
+                } else {
+                    object? instance;
+                    if (row.SubRowId == 0) {
+                        // sheet.GetRow(row.RowId);
+                        var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] { typeof(uint) });
+                        instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId });
+                    } else {
+                        // sheet.GetRow(row.RowId, row.SubRowId);
+                        var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] { typeof(uint), typeof(uint) });
+                        instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId, row.SubRowId });
+                    }
+
+                    // new ExcelScriptingGlobal<ExcelRow>(sheet, row);
+                    var excelScriptingGlobal = typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow);
+                    var globals = Activator.CreateInstance(excelScriptingGlobal, sheetInstance, instance);
+                    if (globals is null) {
+                        SimpleEval();
+                        continue;
+                    }
+
+                    try {
+                        var res = await CSharpScript.EvaluateAsync<bool>(script,
+                            globals: globals,
+                            globalsType: globals.GetType(),
+                            cancellationToken: ct.Token);
+                        if (res) this._filteredRows?.Add(i1);
+                    } catch (Exception e) {
+                        this._scriptError = e.Message;
+                    }
+
+                    GC.Collect();
+                }
+            }
+        }, ct.Token);
     }
 }
