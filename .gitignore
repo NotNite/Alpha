@@ -3,4 +3,4 @@ obj/
 .vs/
 .idea/
 *.user
-publish/
+artifacts/

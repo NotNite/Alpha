@@ -8,7 +8,6 @@ using Lumina;
 using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
-using Microsoft.CodeAnalysis.Scripting;
 using Serilog;
 using ExcelModule = Alpha.Modules.Excel.ExcelModule;
 
@@ -387,62 +386,66 @@ public class ExcelWindow : Window {
         var sheetInstance = genericMethod?.Invoke(Services.GameData, Array.Empty<object>());
 
         var ct = new CancellationTokenSource();
-
         Task.Run(async () => {
-            var globalsType = sheetRow != null
-                ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
-                : null;
-            var expr = CSharpScript.Create<bool>(script, globalsType: globalsType)
-                .WithOptions(ScriptOptions.Default.WithReferences("Alpha"));
-            expr.Compile(ct.Token);
+            try {
+                var globalsType = sheetRow != null
+                    ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
+                    : null;
+                var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
+                expr.Compile(ct.Token);
 
-            for (var i = 0u; i < this._selectedSheet!.RowCount; i++) {
-                if (ct.IsCancellationRequested) {
-                    Log.Debug("Filter script cancelled - aborting");
-                    return;
-                }
-
-                var row = this.GetRow(i);
-                if (row is null) continue;
-                var i1 = i;
-
-                async void SimpleEval() {
-                    try {
-                        var res = await expr.RunAsync(cancellationToken: ct.Token);
-                        if (res.ReturnValue) this._filteredRows?.Add(i1);
-                    } catch (Exception e) {
-                        this._scriptError = e.Message;
-                    }
-                }
-
-                if (sheetRow is null) {
-                    SimpleEval();
-                } else {
-                    object? instance;
-                    if (row.SubRowId == 0) {
-                        // sheet.GetRow(row.RowId);
-                        var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] { typeof(uint) });
-                        instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId });
-                    } else {
-                        // sheet.GetRow(row.RowId, row.SubRowId);
-                        var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] { typeof(uint), typeof(uint) });
-                        instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId, row.SubRowId });
+                for (var i = 0u; i < this._selectedSheet!.RowCount; i++) {
+                    if (ct.IsCancellationRequested) {
+                        Log.Debug("Filter script cancelled - aborting");
+                        return;
                     }
 
-                    // new ExcelScriptingGlobal<ExcelRow>(sheet, row);
-                    var excelScriptingGlobal = typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow);
-                    var globals = Activator.CreateInstance(excelScriptingGlobal, sheetInstance, instance);
-                    if (globals is null) {
-                        SimpleEval();
-                    } else {
+                    var row = this.GetRow(i);
+                    if (row is null) continue;
+                    var i1 = i;
+
+                    async void SimpleEval() {
                         try {
-                            var res = await expr.RunAsync(globals, ct.Token);
+                            var res = await expr.RunAsync(cancellationToken: ct.Token);
                             if (res.ReturnValue) this._filteredRows?.Add(i1);
                         } catch (Exception e) {
                             this._scriptError = e.Message;
                         }
                     }
+
+                    if (sheetRow is null) {
+                        SimpleEval();
+                    } else {
+                        object? instance;
+                        if (row.SubRowId == 0) {
+                            // sheet.GetRow(row.RowId);
+                            var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] { typeof(uint) });
+                            instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId });
+                        } else {
+                            // sheet.GetRow(row.RowId, row.SubRowId);
+                            var getRow = sheetInstance?.GetType()
+                                .GetMethod("GetRow", new[] { typeof(uint), typeof(uint) });
+                            instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId, row.SubRowId });
+                        }
+
+                        // new ExcelScriptingGlobal<ExcelRow>(sheet, row);
+                        var excelScriptingGlobal = typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow);
+                        var globals = Activator.CreateInstance(excelScriptingGlobal, sheetInstance, instance);
+                        if (globals is null) {
+                            SimpleEval();
+                        } else {
+                            try {
+                                var res = await expr.RunAsync(globals, ct.Token);
+                                if (res.ReturnValue) this._filteredRows?.Add(i1);
+                            } catch (Exception e) {
+                                this._scriptError = e.Message;
+                            }
+                        }
+                    }
                 }
+            } catch (Exception e) {
+                Log.Error(e, "Filter script failed");
+                this._scriptError = e.Message;
             }
 
             Log.Debug("Filter script finished");
