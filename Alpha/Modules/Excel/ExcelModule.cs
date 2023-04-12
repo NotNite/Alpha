@@ -10,6 +10,7 @@ using Lumina.Text;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Serilog;
 using Module = Alpha.Core.Module;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace Alpha.Modules.Excel;
 
@@ -610,20 +611,15 @@ public class ExcelModule : Module {
                     var globals = Activator.CreateInstance(excelScriptingGlobal, sheetInstance, instance);
                     if (globals is null) {
                         SimpleEval();
-                        continue;
+                    } else {
+                        try {
+                            var res = await expr.RunAsync(globals, ct.Token);
+                            if (res.ReturnValue) this._filteredRows?.Add(i1);
+                        } catch (Exception e) {
+                            this._scriptError = e.Message;
+                        }
                     }
-
-                    try {
-                        var res = await expr.RunAsync(globals, ct.Token);
-                        if (res.ReturnValue) this._filteredRows?.Add(i1);
-                    } catch (Exception e) {
-                        this._scriptError = e.Message;
-                    }
-
-                    Log.Debug("Executed script for row {Row}", i1);
                 }
-
-                GC.Collect();
             }
 
             Log.Debug("Filter script finished");
