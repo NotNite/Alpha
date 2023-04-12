@@ -21,13 +21,14 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
         this.Sheets = Services.GameData.Excel.GetSheetNames().ToArray();
     }
 
-    public RawExcelSheet? GetSheet(string name, bool skipDefinition = false) {
+    public RawExcelSheet? GetSheet(string name, bool skipCache = false) {
+        if (skipCache) return Services.GameData.Excel.GetSheetRaw(name);
         if (this.SheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
         sheet = Services.GameData.Excel.GetSheetRaw(name);
         this.SheetsCache[name] = sheet;
 
-        if (!skipDefinition && !this.SheetDefinitions.ContainsKey(name)) {
+        if (!this.SheetDefinitions.ContainsKey(name)) {
             this.ResolveSheetDefinition(name);
         }
 
