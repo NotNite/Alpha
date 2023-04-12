@@ -30,7 +30,7 @@ public class ExcelModule : Module {
     private readonly Dictionary<string, RawExcelSheet?> _sheetsCache = new();
     private readonly Dictionary<string, SheetDefinition?> _sheetDefinitions = new();
 
-    private List<CancellationTokenSource> _cancellationTokens = new();
+    private CancellationTokenSource? _cancellationToken;
     private string? _scriptError;
 
     private int? _tempScroll;
@@ -69,6 +69,7 @@ public class ExcelModule : Module {
         this._filteredRows = null;
         this.ResolveSheetDefinition();
         this.SetupRows();
+        this.ResolveFilter();
 
         this.WindowOpen = true;
         this._itemHeight = 0f;
@@ -152,9 +153,17 @@ public class ExcelModule : Module {
 
             var shouldRed = this._scriptError is not null;
             if (shouldRed) ImGui.PushStyleColor(ImGuiCol.Text, 0xFF0000FF);
+            var shouldOrange = this._cancellationToken is not null && !shouldRed;
+            if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, 0xFFA500FF);
 
             var flags = ImGuiInputTextFlags.EnterReturnsTrue;
             if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024, flags)) {
+                this.ResolveFilter();
+            }
+
+            // Disable filter on right click
+            if (ImGui.IsItemHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Right)) {
+                this._contentFilter = string.Empty;
                 this.ResolveFilter();
             }
 
@@ -163,6 +172,17 @@ public class ExcelModule : Module {
                 if (ImGui.IsItemHovered()) {
                     ImGui.BeginTooltip();
                     ImGui.TextUnformatted(this._scriptError ?? "Unknown error");
+                    ImGui.EndTooltip();
+                }
+            }
+
+            if (shouldOrange) {
+                ImGui.PopStyleColor();
+                if (ImGui.IsItemHovered()) {
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted(
+                        "A script is currently running, which will drastically impact performance.\n"
+                        + "To stop the script, empty or right click the input box.");
                     ImGui.EndTooltip();
                 }
             }
@@ -473,6 +493,16 @@ public class ExcelModule : Module {
     }
 
     private void ResolveFilter() {
+        Log.Debug("Resolving filter...");
+
+        // clean up scripts
+        if (this._cancellationToken is not null) {
+            this._cancellationToken.Cancel();
+            this._cancellationToken.Dispose();
+        }
+
+        this._scriptError = null;
+
         if (string.IsNullOrEmpty(this._contentFilter)) {
             this._filteredRows = null;
             return;
@@ -484,14 +514,6 @@ public class ExcelModule : Module {
         }
 
         this._filteredRows = new();
-        foreach (var ct in this._cancellationTokens) {
-            ct.Cancel();
-            ct.Dispose();
-        }
-        this._cancellationTokens.Clear();
-
-        this._scriptError = null;
-
         if (this._contentFilter.StartsWith("$")) {
             var script = this._contentFilter[1..];
             this.FilterScript(script);
@@ -500,6 +522,7 @@ public class ExcelModule : Module {
         }
 
         this._itemHeight = 0;
+        Log.Debug("Filter resolved!");
     }
 
     private void FilterSimple(string filter) {
@@ -522,6 +545,8 @@ public class ExcelModule : Module {
     }
 
     private void FilterScript(string script) {
+        this._scriptError = null;
+
         // picked a random type for this, doesn't really matter
         var luminaTypes = Assembly.GetAssembly(typeof(Lumina.Excel.GeneratedSheets.Addon))?.GetTypes();
         var sheets = luminaTypes?
@@ -539,16 +564,28 @@ public class ExcelModule : Module {
         var sheetInstance = genericMethod?.Invoke(Services.GameData, Array.Empty<object>());
 
         var ct = new CancellationTokenSource();
+
         Task.Run(async () => {
+            var globalsType = sheetRow != null
+                ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
+                : null;
+            var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
+            expr.Compile(ct.Token);
+
             for (var i = 0u; i < this._selectedSheet!.RowCount; i++) {
+                if (ct.IsCancellationRequested) {
+                    Log.Debug("Filter script cancelled - aborting");
+                    return;
+                }
+
                 var row = this.GetRow(i);
                 if (row is null) continue;
                 var i1 = i;
 
                 async void SimpleEval() {
                     try {
-                        var res = await CSharpScript.EvaluateAsync<bool>(script, cancellationToken: ct.Token);
-                        if (res) this._filteredRows?.Add(i1);
+                        var res = await expr.RunAsync(cancellationToken: ct.Token);
+                        if (res.ReturnValue) this._filteredRows?.Add(i1);
                     } catch (Exception e) {
                         this._scriptError = e.Message;
                     }
@@ -577,19 +614,23 @@ public class ExcelModule : Module {
                     }
 
                     try {
-                        var res = await CSharpScript.EvaluateAsync<bool>(script,
-                            globals: globals,
-                            globalsType: globals.GetType(),
-                            cancellationToken: ct.Token);
-                        if (res) this._filteredRows?.Add(i1);
+                        var res = await expr.RunAsync(globals, ct.Token);
+                        if (res.ReturnValue) this._filteredRows?.Add(i1);
                     } catch (Exception e) {
                         this._scriptError = e.Message;
                     }
 
-                    GC.Collect();
+                    Log.Debug("Executed script for row {Row}", i1);
                 }
+
+                GC.Collect();
             }
+
+            Log.Debug("Filter script finished");
+            this._cancellationToken = null;
+            ct.Dispose();
         }, ct.Token);
-        this._cancellationTokens.Add(ct);
+
+        this._cancellationToken = ct;
     }
 }

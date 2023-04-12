@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 using System.Reflection;
 using Alpha.Modules;
-using Alpha.Utils;
 using ImGuiNET;
 using NativeFileDialogSharp;
 using Serilog;
@@ -99,7 +99,7 @@ public class Program {
 
             if (imageStopwatch.ElapsedMilliseconds > 10000) {
                 imageStopwatch.Restart();
-                Services.ImageHandler.DisposeAllTextures(); 
+                Services.ImageHandler.DisposeAllTextures();
             }
         }
 
@@ -127,6 +127,27 @@ public class Program {
                 DrawMain();
                 break;
         }
+
+#if DEBUG
+        var flags = ImGuiWindowFlags.NoCollapse
+                    | ImGuiWindowFlags.NoResize
+                    | ImGuiWindowFlags.NoTitleBar
+                    | ImGuiWindowFlags.NoMove
+                    | ImGuiWindowFlags.NoScrollbar
+                    | ImGuiWindowFlags.NoInputs;
+        
+        var size = new Vector2(100, 50);
+        var pos = ImGui.GetMainViewport().Size - size - new Vector2(10, 10);
+        
+        ImGui.SetNextWindowPos(pos);
+        ImGui.SetNextWindowSize(size);
+        
+        if (ImGui.Begin("##AlphaDebug", flags)) {
+            ImGui.Text($"FPS: {ImGui.GetIO().Framerate:0.00}");
+            ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024} MB");
+            ImGui.End();
+        }
+#endif
     }
 
     private static void DrawSetup() {
