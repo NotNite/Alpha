@@ -4,7 +4,7 @@ using ImGuiNET;
 
 namespace Alpha.Modules;
 
-public class ResLoggerModule : Module {
+public class ResLoggerModule : SimpleModule {
     public readonly List<string> CurrentPathCache = new();
     public readonly List<string> PathCache = new();
 
@@ -16,9 +16,7 @@ public class ResLoggerModule : Module {
         if (Services.Configuration.AutoCurrentPaths) this.FetchCurrentPaths();
     }
 
-    internal override void Draw() {
-        return;
-        
+    internal override void SimpleDraw() {
         ImGui.Text("Path cache count: " + this.PathCache.Count);
         ImGui.Text("Current path cache count: " + this.CurrentPathCache.Count);
 
