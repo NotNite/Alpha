@@ -8,10 +8,11 @@ public class Configuration {
     public string? GamePath { get; set; }
     public Language ExcelLanguage { get; set; } = Language.English;
     public bool DrawImGuiDemo { get; set; }
+    public bool DrawDebug { get; set; }
 
     public bool AutoPaths { get; set; }
     public bool AutoCurrentPaths { get; set; }
-    
+
     public bool PreferHr1 { get; set; } = true;
 
     public int WindowX { get; set; } = 100;

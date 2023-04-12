@@ -42,92 +42,94 @@ public class FilesystemModule : Module {
         this._reslogger = Services.ModuleManager.GetModule<ResLoggerModule>();
     }
 
-    internal override void PreDraw() {
-        ImGui.SetNextWindowSize(new Vector2(960, 540), ImGuiCond.FirstUseEver);
-    }
-
     internal override void Draw() {
-        var temp = ImGui.GetCursorPosY();
-        ImGui.SetNextItemWidth(this._sidebarWidth);
-        if (ImGui.InputText("##FilesystemFilter", ref this._filter, 1024)) {
-            this._cache.Clear();
+        return;
 
-            this._rootCategories = this._reslogger.CurrentPathCache
-                .Where(x => x.ToLower().Contains(this._filter.ToLower()))
-                .Select(x => x.Split("/").First())
-                .Distinct()
-                .ToArray();
-        }
+        if (ImGui.Begin("Filesystem Browser")) {
+            var temp = ImGui.GetCursorPosY();
+            ImGui.SetNextItemWidth(this._sidebarWidth);
+            if (ImGui.InputText("##FilesystemFilter", ref this._filter, 1024)) {
+                this._cache.Clear();
 
-        var cra = ImGui.GetContentRegionAvail();
-        ImGui.BeginChild("##FilesystemModule_Sidebar", cra with { X = this._sidebarWidth }, true);
-
-        if (this._reslogger.CurrentPathCache.Count > 0) {
-            foreach (var rootCategory in this._rootCategories) {
-                if (ImGui.TreeNode(rootCategory + "/")) {
-                    this.RecursiveTree(rootCategory);
-                    ImGui.TreePop();
-                }
+                this._rootCategories = this._reslogger.CurrentPathCache
+                    .Where(x => x.ToLower().Contains(this._filter.ToLower()))
+                    .Select(x => x.Split("/").First())
+                    .Distinct()
+                    .ToArray();
             }
-        } else {
-            ImGui.Text("No ResLogger data :(");
-        }
 
-        ImGui.EndChild();
+            var cra = ImGui.GetContentRegionAvail();
+            ImGui.BeginChild("##FilesystemModule_Sidebar", cra with { X = this._sidebarWidth }, true);
 
-        ImGui.SameLine();
-        ImGui.SetCursorPosY(temp);
-
-        UiUtils.HorizontalSplitter(ref this._sidebarWidth);
-
-        ImGui.SameLine();
-        ImGui.SetCursorPosY(temp);
-
-        ImGui.BeginChild("##FilesystemModule_Content", ImGui.GetContentRegionAvail(), true);
-        if (this._selectedFile is not null) {
-            ImGui.Text(this._selectedPath);
-            ImGui.Text($"{this._selectedFile.Data.Length} bytes");
-
-            if (ImGui.Button("Save file")) {
-                var extension = Path.GetExtension(this._selectedPath).Substring(1);
-                var dialogResult = Dialog.FileSave(extension);
-                if (dialogResult?.Path is not null) {
-                    var path = dialogResult.Path;
-                    if (!path.EndsWith(extension)) {
-                        path += "." + extension;
+            if (this._reslogger.CurrentPathCache.Count > 0) {
+                foreach (var rootCategory in this._rootCategories) {
+                    if (ImGui.TreeNode(rootCategory + "/")) {
+                        this.RecursiveTree(rootCategory);
+                        ImGui.TreePop();
                     }
-
-                    File.WriteAllBytes(path, this._selectedFile.Data);
                 }
+            } else {
+                ImGui.Text("No ResLogger data :(");
             }
+
+            ImGui.EndChild();
 
             ImGui.SameLine();
+            ImGui.SetCursorPosY(temp);
 
-            if (ImGui.Button("Open in default app")) {
-                var tempFile = Path.GetTempFileName() + Path.GetExtension(this._selectedPath);
-                File.WriteAllBytes(tempFile, this._selectedFile.Data);
+            UiUtils.HorizontalSplitter(ref this._sidebarWidth);
 
-                // TODO unix support
-                Process.Start("explorer.exe", $"\"{tempFile}\"");
-            }
+            ImGui.SameLine();
+            ImGui.SetCursorPosY(temp);
 
-            if (this._selectedPath.EndsWith("exh")) {
-                if (ImGui.Button("Open in Excel browser")) {
-                    var path = this._selectedPath
-                        .Replace("exd/", string.Empty)
-                        .Replace(".exh", string.Empty);
-                    Services.ModuleManager.GetModule<ExcelModule>().OpenSheet(path);
+            ImGui.BeginChild("##FilesystemModule_Content", ImGui.GetContentRegionAvail(), true);
+            if (this._selectedFile is not null) {
+                ImGui.Text(this._selectedPath);
+                ImGui.Text($"{this._selectedFile.Data.Length} bytes");
+
+                if (ImGui.Button("Save file")) {
+                    var extension = Path.GetExtension(this._selectedPath).Substring(1);
+                    var dialogResult = Dialog.FileSave(extension);
+                    if (dialogResult?.Path is not null) {
+                        var path = dialogResult.Path;
+                        if (!path.EndsWith(extension)) {
+                            path += "." + extension;
+                        }
+
+                        File.WriteAllBytes(path, this._selectedFile.Data);
+                    }
+                }
+
+                ImGui.SameLine();
+
+                if (ImGui.Button("Open in default app")) {
+                    var tempFile = Path.GetTempFileName() + Path.GetExtension(this._selectedPath);
+                    File.WriteAllBytes(tempFile, this._selectedFile.Data);
+
+                    // TODO unix support
+                    Process.Start("explorer.exe", $"\"{tempFile}\"");
+                }
+
+                if (this._selectedPath.EndsWith("exh")) {
+                    if (ImGui.Button("Open in Excel browser")) {
+                        var path = this._selectedPath
+                            .Replace("exd/", string.Empty)
+                            .Replace(".exh", string.Empty);
+                        //Services.ModuleManager.GetModule<ExcelModule>().OpenSheet(path);
+                    }
+                }
+
+                if (this._selectedPath.EndsWith("tex")) {
+                    var texFile = (TexFile)this._selectedFile;
+                    var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
+                    ImGui.Image(Services.ImageHandler.DisplayTex(texFile), size);
                 }
             }
 
-            if (this._selectedPath.EndsWith("tex")) {
-                var texFile = (TexFile)this._selectedFile;
-                var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
-                ImGui.Image(Services.ImageHandler.DisplayTex(texFile), size);
-            }
+            ImGui.EndChild();
         }
 
-        ImGui.EndChild();
+        ImGui.End();
     }
 
     private void RecursiveTree(string folder) {
@@ -146,7 +148,7 @@ public class FilesystemModule : Module {
     }
 
     public void OpenFile(string path) {
-        this.WindowOpen = true;
+        //this.WindowOpen = true;
         this._selectedPath = path;
 
         if (path.EndsWith("tex")) {

@@ -73,7 +73,7 @@ public class Program {
 
         var commandList = GraphicsDevice.ResourceFactory.CreateCommandList();
         ImGuiHandler = new ImGuiHandler(Window, GraphicsDevice);
-        
+
         FpsLimit = Services.Configuration.FpsLimit;
 
         var stopwatch = Stopwatch.StartNew();
@@ -111,7 +111,7 @@ public class Program {
         ImGuiHandler.Dispose();
         GraphicsDevice.Dispose();
         Window.Close();
-        
+
         Services.Configuration.WindowWidth = Window.Width;
         Services.Configuration.WindowHeight = Window.Height;
         Services.Configuration.WindowX = Window.X;
@@ -139,13 +139,13 @@ public class Program {
                     | ImGuiWindowFlags.NoMove
                     | ImGuiWindowFlags.NoScrollbar
                     | ImGuiWindowFlags.NoInputs;
-        
+
         var size = new Vector2(100, 50);
         var pos = ImGui.GetMainViewport().Size - size - new Vector2(10, 10);
-        
+
         ImGui.SetNextWindowPos(pos);
         ImGui.SetNextWindowSize(size);
-        
+
         if (ImGui.Begin("##AlphaDebug", flags)) {
             ImGui.Text($"FPS: {ImGui.GetIO().Framerate:0.00}");
             ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024} MB");
@@ -202,8 +202,11 @@ public class Program {
                     Services.Configuration.Save();
                 }
 
-                ImGui.MenuItem("Open settings", null,
-                    ref Services.ModuleManager.GetModule<SettingsModule>().WindowOpen);
+                var settings = Services.ModuleManager.GetModule<SettingsModule>();
+                var isEnabled = settings.IsEnabled();
+                if (ImGui.MenuItem("Open settings", null, ref isEnabled)) {
+                    settings.OnClick();
+                }
 
                 if (ImGui.MenuItem("Exit")) {
                     Window.Close();
@@ -229,7 +232,10 @@ public class Program {
                 foreach (var category in categories) {
                     if (ImGui.BeginMenu(category)) {
                         foreach (var module in modules.Where(m => m.Category == category)) {
-                            ImGui.MenuItem(module.Name, null, ref module.WindowOpen);
+                            var enabled = module.IsEnabled();
+                            if (ImGui.MenuItem(module.Name, null, ref enabled)) {
+                                module.OnClick();
+                            }
                         }
 
                         ImGui.EndMenu();

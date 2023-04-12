@@ -11,6 +11,7 @@ public class ModuleManager {
         var modules = Assembly.GetExecutingAssembly()
             .GetTypes()
             .Where(t => t.IsSubclassOf(typeof(Module)))
+            .Where(t => !t.IsAbstract)
             .ToArray();
 
         // I will write my own dependency resolver instead of using DI and you will slowly weep
@@ -68,19 +69,12 @@ public class ModuleManager {
         foreach (var module in this._modules) {
             var typeName = module.GetType().Name;
 
-            if (module.WindowOpen) {
-                try {
-                    module.PreDraw();
-
-                    ImGui.PushID("Alpha_Module_" + typeName);
-                    if (ImGui.Begin(module.Name, ref module.WindowOpen, module.WindowFlags)) module.Draw();
-                    ImGui.End();
-                    ImGui.PopID();
-
-                    module.PostDraw();
-                } catch (Exception e) {
-                    Log.Error(e, "Failed to draw {typeName}", typeName);
-                }
+            try {
+                ImGui.PushID("Alpha_Module_" + typeName);
+                module.Draw();
+                ImGui.PopID();
+            } catch (Exception e) {
+                Log.Error(e, "Failed to draw {typeName}", typeName);
             }
         }
     }

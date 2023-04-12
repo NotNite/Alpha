@@ -17,6 +17,8 @@ public class ResLoggerModule : Module {
     }
 
     internal override void Draw() {
+        return;
+        
         ImGui.Text("Path cache count: " + this.PathCache.Count);
         ImGui.Text("Current path cache count: " + this.CurrentPathCache.Count);
 

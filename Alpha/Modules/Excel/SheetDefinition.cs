@@ -46,8 +46,8 @@ public class SheetDefinition {
         return 1;
     }
 
-    private ColumnDefinition? GetDefinitionByIndex(uint index) {
-        // can't put this in constructor, dunno why
+    // can't put this in constructor, dunno why
+    private void EnsureColumnCache() {
         if (this._columnCache is null) {
             this._columnCache = new();
 
@@ -55,8 +55,11 @@ public class SheetDefinition {
                 this.ResolveDefinition(def);
             }
         }
+    }
 
-        return this._columnCache.TryGetValue(index, out var retDef) ? retDef : null;
+    private ColumnDefinition? GetDefinitionByIndex(uint index) {
+        this.EnsureColumnCache();
+        return this._columnCache!.TryGetValue(index, out var retDef) ? retDef : null;
     }
 
     public string? GetNameForColumn(int index) {
@@ -64,6 +67,16 @@ public class SheetDefinition {
 
         if (def is SingleColumnDefinition srd) return srd.Name;
         // TODO
+
+        return null;
+    }
+
+    public int? GetColumnForName(string name) {
+        this.EnsureColumnCache();
+        foreach (var (key, value) in this._columnCache!) {
+            if (value is SingleColumnDefinition srd && srd.Name == name) return (int)key;
+            // TODO
+        }
 
         return null;
     }
