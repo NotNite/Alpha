@@ -486,9 +486,12 @@ public class ExcelModule : Module {
         this._filteredRows = new();
         foreach (var ct in this._cancellationTokens) {
             ct.Cancel();
+            ct.Dispose();
         }
+        this._cancellationTokens.Clear();
 
         this._scriptError = null;
+
         if (this._contentFilter.StartsWith("$")) {
             var script = this._contentFilter[1..];
             this.FilterScript(script);
@@ -587,5 +590,6 @@ public class ExcelModule : Module {
                 }
             }
         }, ct.Token);
+        this._cancellationTokens.Add(ct);
     }
 }
