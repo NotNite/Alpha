@@ -51,13 +51,6 @@ public class ImGuiHandler : IDisposable {
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         io.DisplayFramebufferScale = new Vector2(Services.Configuration.DisplayScale);
 
-        // Why the hell does this require an unsafe block, I'll never know
-        unsafe {
-            var path = Path.Combine(Program.DataDirectory, "imgui.ini");
-            File.Create(path).Dispose();
-            io.NativePtr->IniFilename = (byte*)Marshal.StringToHGlobalAnsi(path).ToPointer();
-        }
-
         this.CreateDeviceResources();
         this.SetPerFrameImGuiData(1f / 60f);
 

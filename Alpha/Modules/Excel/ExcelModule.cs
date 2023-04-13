@@ -98,7 +98,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
     ) {
         switch (converter) {
             // Was originally 'link when link.Target != null', Rider wants me to turn it into this monstrous thing
-            case LinkConverterDefinition { Target: { } } link: {
+            case LinkConverterDefinition { Target: not null } link: {
                 var targetRow = 0;
                 try {
                     targetRow = Convert.ToInt32(data);
@@ -264,7 +264,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
             && this.SheetDefinitions.TryGetValue(link, out var sheetDef)
             && sheetDef is not null) {
             var targetRowObj = targetSheet.GetRow((uint)targetRow);
-            int targetCol = sheetDef.DefaultColumn is not null
+            var targetCol = sheetDef.DefaultColumn is not null
                 ? sheetDef.GetColumnForName(sheetDef.DefaultColumn) ?? 0
                 : 0;
 
