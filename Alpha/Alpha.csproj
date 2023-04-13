@@ -9,27 +9,27 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="ImGui.NET" Version="1.89.4"/>
-        <PackageReference Include="Lumina" Version="3.10.2"/>
-        <PackageReference Include="Lumina.Excel" Version="6.3.2"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.6.0-1.final"/>
-        <PackageReference Include="NativeFileDialogSharp" Version="0.6.0-alpha"/>
-        <PackageReference Include="Serilog" Version="3.0.0-dev-01958"/>
-        <PackageReference Include="Serilog.Sinks.Console" Version="4.1.1-dev-00910"/>
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1"/>
-        <PackageReference Include="Veldrid" Version="4.9.0"/>
-        <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0"/>
+        <PackageReference Include="ImGui.NET" Version="1.89.4" />
+        <PackageReference Include="Lumina" Version="3.10.2" />
+        <PackageReference Include="Lumina.Excel" Version="6.3.2" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.6.0-1.final" />
+        <PackageReference Include="NativeFileDialogSharp" Version="0.6.0-alpha" />
+        <PackageReference Include="Serilog" Version="3.0.0-dev-01958" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="4.1.1-dev-00910" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
+        <PackageReference Include="Veldrid" Version="4.9.0" />
+        <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="res/Fonts/NotoSansCJKjp-Medium.otf" LogicalName="NotoSansCJKjp-Medium.otf"/>
-        <EmbeddedResource Include="res/Shaders/GLSL/imgui-vertex.glsl" LogicalName="imgui-vertex.glsl"/>
-        <EmbeddedResource Include="res/Shaders/GLSL/imgui-frag.glsl" LogicalName="imgui-frag.glsl"/>
-        <EmbeddedResource Include="res/Shaders/HLSL/imgui-vertex.hlsl.bytes" LogicalName="imgui-vertex.hlsl.bytes"/>
-        <EmbeddedResource Include="res/Shaders/HLSL/imgui-frag.hlsl.bytes" LogicalName="imgui-frag.hlsl.bytes"/>
-        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-vertex.spv" LogicalName="imgui-vertex.spv"/>
-        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-frag.spv" LogicalName="imgui-frag.spv"/>
-        <EmbeddedResource Include="res/Shaders/Metal/imgui-vertex.metallib" LogicalName="imgui-vertex.metallib"/>
-        <EmbeddedResource Include="res/Shaders/Metal/imgui-frag.metallib" LogicalName="imgui-frag.metallib"/>
+        <EmbeddedResource Include="res/Fonts/NotoSansCJKjp-Medium.otf" LogicalName="NotoSansCJKjp-Medium.otf" />
+        <EmbeddedResource Include="res/Shaders/GLSL/imgui-vertex.glsl" LogicalName="imgui-vertex.glsl" />
+        <EmbeddedResource Include="res/Shaders/GLSL/imgui-frag.glsl" LogicalName="imgui-frag.glsl" />
+        <EmbeddedResource Include="res/Shaders/HLSL/imgui-vertex.hlsl.bytes" LogicalName="imgui-vertex.hlsl.bytes" />
+        <EmbeddedResource Include="res/Shaders/HLSL/imgui-frag.hlsl.bytes" LogicalName="imgui-frag.hlsl.bytes" />
+        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-vertex.spv" LogicalName="imgui-vertex.spv" />
+        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-frag.spv" LogicalName="imgui-frag.spv" />
+        <EmbeddedResource Include="res/Shaders/Metal/imgui-vertex.metallib" LogicalName="imgui-vertex.metallib" />
+        <EmbeddedResource Include="res/Shaders/Metal/imgui-frag.metallib" LogicalName="imgui-frag.metallib" />
     </ItemGroup>
 </Project>

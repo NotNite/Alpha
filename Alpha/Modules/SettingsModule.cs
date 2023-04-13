@@ -60,5 +60,11 @@ public class SettingsModule : SimpleModule {
             Services.Configuration.DisplayScale = MathF.Max(0.5f, scale);
             Services.Configuration.Save();
         }
+
+        var hexEditorPath = Services.Configuration.HexEditorPath;
+        if (ImGui.InputText("Hex editor path", ref hexEditorPath, 1024)) {
+            Services.Configuration.HexEditorPath = hexEditorPath;
+            Services.Configuration.Save();
+        }
     }
 }

@@ -104,9 +104,16 @@ public class FilesystemWindow : Window {
             if (ImGui.Button("Open in default app")) {
                 var tempFile = Path.GetTempFileName() + Path.GetExtension(this._selectedPath);
                 File.WriteAllBytes(tempFile, this._selectedFile.Data);
+                AppUtils.OpenFile(tempFile);
+            }
 
-                // TODO unix support
-                Process.Start("explorer.exe", $"\"{tempFile}\"");
+            ImGui.SameLine();
+
+            var hexEditor = Services.Configuration.HexEditorPath;
+            if (!string.IsNullOrEmpty(hexEditor) && ImGui.Button("Open in hex editor")) {
+                var tempFile = Path.GetTempFileName() + Path.GetExtension(this._selectedPath);
+                File.WriteAllBytes(tempFile, this._selectedFile.Data);
+                AppUtils.OpenInApp(hexEditor, tempFile);
             }
 
             if (this._selectedPath!.EndsWith("exh")) {
@@ -125,7 +132,7 @@ public class FilesystemWindow : Window {
                 if (ImGui.Button("Export as .png")) {
                     UiUtils.ExportPng(texFile);
                 }
-                
+
                 ImGui.Image(Services.ImageHandler.DisplayTex(texFile), size);
             }
         }

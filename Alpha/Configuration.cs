@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
+using Alpha.Utils;
 using Lumina.Data;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Alpha;
 
@@ -20,8 +22,9 @@ public class Configuration {
     public int WindowWidth { get; set; } = 1280;
     public int WindowHeight { get; set; } = 720;
     public float DisplayScale { get; set; } = 1.0f;
-
     public float FpsLimit { get; set; } = 60.0f;
+
+    public string HexEditorPath { get; set; } = string.Empty;
 
     public void Save() {
         var path = Path.Combine(Program.DataDirectory, "config.json");
@@ -39,6 +42,45 @@ public class Configuration {
         }
 
         var serialized = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<Configuration>(serialized) ?? new Configuration();
+        var obj = JsonSerializer.Deserialize<Configuration>(serialized) ?? new Configuration();
+
+        if (obj.HexEditorPath == string.Empty) obj.HexEditorPath = DetermineHexEditor();
+
+        obj.Save();
+        return obj;
+    }
+
+    // Just the hex editors I know of, feel free to PR more
+    private static string DetermineHexEditor() {
+        var pathsWin = new[] {
+            "C:/Program Files/010 Editor/010Editor.exe",
+            "C:/Program Files/ImHex/ImHex.exe",
+            "C:/Program Files (x86)/HxD/HxD.exe"
+        };
+
+        var pathsUnix = new[] {
+            // I don't know where 010 installs to :P
+            "/usr/bin/imhex"
+        };
+
+        var pathsMac = new[] {
+            "/Applications/010 Editor.app/Contents/MacOS/010 Editor",
+            "/Applications/imhex.app/Contents/MacOS/imhex"
+        };
+
+        var pathList = Environment.OSVersion.Platform switch {
+            PlatformID.Win32NT => pathsWin,
+            PlatformID.Unix => pathsUnix,
+            PlatformID.MacOSX => pathsMac,
+            _ => null
+        };
+
+        if (pathList is null) return string.Empty;
+
+        foreach (var path in pathList) {
+            if (File.Exists(path)) return path;
+        }
+
+        return string.Empty;
     }
 }
