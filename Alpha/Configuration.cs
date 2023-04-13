@@ -19,6 +19,7 @@ public class Configuration {
     public int WindowY { get; set; } = 100;
     public int WindowWidth { get; set; } = 1280;
     public int WindowHeight { get; set; } = 720;
+    public float DisplayScale { get; set; } = 1.0f;
 
     public float FpsLimit { get; set; } = 60.0f;
 

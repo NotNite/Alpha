@@ -49,6 +49,7 @@ public class ImGuiHandler : IDisposable {
         var io = ImGui.GetIO();
         io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+        io.DisplayFramebufferScale = new Vector2(Services.Configuration.DisplayScale);
 
         // Why the hell does this require an unsafe block, I'll never know
         unsafe {
@@ -242,15 +243,16 @@ public class ImGuiHandler : IDisposable {
 
     private void SetPerFrameImGuiData(float deltaSeconds) {
         var io = ImGui.GetIO();
-        io.DisplaySize = new Vector2(this._window.Width, this._window.Height);
-        io.DisplayFramebufferScale = new Vector2(1f);
+        var scale = io.DisplayFramebufferScale.X;
+        io.DisplaySize = new Vector2(this._window.Width / scale, this._window.Height / scale);
         io.DeltaTime = deltaSeconds;
     }
 
     private void UpdateImGuiInput(InputSnapshot snapshot) {
         var io = ImGui.GetIO();
+        var scale = io.DisplayFramebufferScale.X;
 
-        io.AddMousePosEvent(snapshot.MousePosition.X, snapshot.MousePosition.Y);
+        io.AddMousePosEvent(snapshot.MousePosition.X / scale, snapshot.MousePosition.Y / scale);
         io.AddMouseButtonEvent(0, snapshot.IsMouseDown(MouseButton.Left));
         io.AddMouseButtonEvent(1, snapshot.IsMouseDown(MouseButton.Right));
         io.AddMouseButtonEvent(2, snapshot.IsMouseDown(MouseButton.Middle));

@@ -54,5 +54,11 @@ public class SettingsModule : SimpleModule {
             Services.Configuration.DrawDebug = drawDebug;
             Services.Configuration.Save();
         }
+
+        var scale = Services.Configuration.DisplayScale;
+        if (ImGui.InputFloat("Display scale", ref scale)) {
+            Services.Configuration.DisplayScale = MathF.Max(0.5f, scale);
+            Services.Configuration.Save();
+        }
     }
 }
