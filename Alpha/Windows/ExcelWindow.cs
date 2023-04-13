@@ -32,7 +32,7 @@ public class ExcelWindow : Window {
 
     private int? _tempScroll;
     private int _paintTicksLeft = -1;
-    private float? _itemHeight;
+    private float? _itemHeight = 0;
 
     public ExcelWindow(ExcelModule module) {
         this.Name = "Excel Browser";
@@ -58,7 +58,7 @@ public class ExcelWindow : Window {
         Log.Debug("Opening sheet: {SheetName}", sheetName);
         this._selectedSheet = sheet;
         this._filteredRows = null;
-        this._itemHeight = null;
+        this._itemHeight = 0;
 
         this._rowMapping = this.SetupRows(sheet);
         this.ResolveContentFilter();
