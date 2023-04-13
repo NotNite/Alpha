@@ -96,7 +96,6 @@ public class Program {
             commandList.ClearColorTarget(0, new RgbaFloat(forty, forty, forty, 1f));
 
             ImGuiHandler.Render(commandList);
-
             commandList.End();
             GraphicsDevice.SubmitCommands(commandList);
             GraphicsDevice.SwapBuffers(GraphicsDevice.MainSwapchain);

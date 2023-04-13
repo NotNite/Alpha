@@ -51,6 +51,22 @@ public class ImGuiHandler : IDisposable {
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         io.DisplayFramebufferScale = new Vector2(Services.Configuration.DisplayScale);
 
+        unsafe {
+            io.Fonts.AddFontDefault();
+
+            var bytes = this.GetEmbeddedResourceBytes("NotoSansCJKjp-Medium.otf");
+            var ptr = Marshal.AllocHGlobal(bytes.Length);
+            Marshal.Copy(bytes, 0, ptr, bytes.Length);
+
+            var cfg = ImGuiNative.ImFontConfig_ImFontConfig();
+            cfg->MergeMode = 1;
+            var jpGlyphRanges = io.Fonts.GetGlyphRangesJapanese();
+            io.Fonts.AddFontFromMemoryTTF(ptr, bytes.Length, 16, cfg, jpGlyphRanges);
+
+            io.Fonts.Build();
+            this.RecreateFontDeviceTexture();
+        }
+
         this.CreateDeviceResources();
         this.SetPerFrameImGuiData(1f / 60f);
 

@@ -37,6 +37,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
 
     public void ReloadAllSheets() {
         this.SheetsCache.Clear();
+        foreach (var window in this.Windows) window.Reload();
     }
 
     public void OpenNewWindow(string? sheet = null, int? scrollTo = null) {
