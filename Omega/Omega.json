@@ -1,0 +1,9 @@
+{
+    "Author": "NotNite",
+    "Name": "Omega",
+    "Punchline": "Development toolkit for remote connections",
+    "Description": "Runs a server you can connect to (with Alpha) to mess with the game.",
+    "InternalName": "Omega",
+    "ApplicableVersion": "any",
+    "Tags": ["dev", "alpha", "omega"]
+}

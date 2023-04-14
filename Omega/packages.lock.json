@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net7.0-windows7.0": {
+      "DalamudPackager": {
+        "type": "Direct",
+        "requested": "[2.1.11, )",
+        "resolved": "2.1.11",
+        "contentHash": "9qlAWoRRTiL/geAvuwR/g6Bcbrd/bJJgVnB/RurBiyKs6srsP0bvpoo8IK+Eg8EA6jWeM6/YJWs66w4FIAzqPw=="
+      },
+      "Google.Protobuf": {
+        "type": "Direct",
+        "requested": "[3.22.3, )",
+        "resolved": "3.22.3",
+        "contentHash": "uyWJZTS0N3gw35jtm/++1jAJNPkFP92QYdxgiC0yv8vQaOi8gaJZ8PhCnjmN6JbobJcCFPBd0cGkmCh6QYOt6Q=="
+      },
+      "Grpc.Tools": {
+        "type": "Direct",
+        "requested": "[2.54.0, )",
+        "resolved": "2.54.0",
+        "contentHash": "E+c9vTTSM1AHX5085MeF4J6QS0qACiz0Svm2zk+/F6gjuSo178gMLn7n6jMOSdF6OEHde5Cm86ouD8X49SrVbA=="
+      }
+    }
+  }
+}

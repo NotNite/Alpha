@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package com.notnite.alpha;
+option csharp_namespace = "Alpha.Proto";
+
+message C2SMessage {
+  oneof message {
+    Ping ping = 1;
+  }
+}
+
+message S2CMessage {
+  oneof message {
+    Pong pong = 1;
+  }
+}
+
+message Ping { }
+
+message Pong {
+  string game_version = 1;
+}
