@@ -12,6 +12,7 @@ public class MemoryModule : WindowedModule<MemoryWindow> {
 
     public Dictionary<long, byte[]> Memory = new();
     private List<(long, long)> _requested = new();
+    private List<PositionUpdatePayload> _updates = new();
 
     public MemoryModule() : base("Memory Viewer", "Omega") {
         this._omega = Services.ModuleManager.GetModule<OmegaModule>();
@@ -27,7 +28,6 @@ public class MemoryModule : WindowedModule<MemoryWindow> {
                 }
             }
         };
-        this.OpenNewWindow();
     }
 
     internal override void OnClick() {
@@ -46,26 +46,23 @@ public class MemoryModule : WindowedModule<MemoryWindow> {
             return;
         }
 
-        for (var i = start; i < end; i += 0x10) {
-            if (!this.Memory.ContainsKey(i)) {
-                Task.Run(() => {
-                    try {
-                        var bytes = this._omega.GetBytes(start, end);
-                        for (var j = 0; j < bytes.Length; j += 0x10) {
-                            var key2 = start + j;
-                            var section = bytes.AsSpan(j, 0x10).ToArray();
-                            this.Memory[key2] = section;
-                        }
-                    } catch (Exception e) {
-                        Log.Error(e, "Failed to get memory");
-                    }
-                });
-
-                this._requested.Add(key);
-                this.Memory.Clear();
-                return;
+        Task.Run(() => {
+            try {
+                var bytes = this._omega.GetBytes(start, end);
+                for (var j = 0; j < bytes.Length; j += 0x10) {
+                    var key2 = start + j;
+                    var section = bytes.AsSpan(j, 0x10).ToArray();
+                    this.Memory[key2] = section;
+                }
+            } catch (Exception e) {
+                Log.Error(e, "Failed to get memory");
             }
-        }
+
+            this._requested.Remove(key);
+        });
+
+        this._requested.Add(key);
+        this.Memory.Clear();
     }
 
     public void WriteMemory(Dictionary<long, byte> bytes) {
@@ -89,5 +86,41 @@ public class MemoryModule : WindowedModule<MemoryWindow> {
         };
 
         this._omega.Send(msg);
+    }
+
+    internal override void Draw() {
+        base.Draw();
+
+        var newUpdates = this.Windows.Where(x => x.Start is not null && x.End is not null)
+            .Select(x => (x.Start!.Value, x.End!.Value))
+            .Select(x => new PositionUpdatePayload {
+                Start = x.Item1,
+                End = x.Item2
+            })
+            .ToList();
+
+        if (newUpdates.SequenceEqual(this._updates)) return;
+
+        var msg = new C2SMessage {
+            MemoryPositionUpdate = new MemoryPositionUpdate {
+                Payloads = { this._updates }
+            }
+        };
+        this._omega.Send(msg);
+        this._updates = newUpdates;
+    }
+
+    public byte[] GetBytes(long pos, int size) {
+        var ret = new byte[size];
+
+        for (var i = 0; i < size; i++) {
+            var chunk = pos - pos % 0x10;
+            var offset = (int)(pos - chunk);
+            var section = this.Memory.TryGetValue(chunk, out var value) ? value : new byte[0x10];
+            ret[i] = section[offset];
+            pos++;
+        }
+
+        return ret;
     }
 }

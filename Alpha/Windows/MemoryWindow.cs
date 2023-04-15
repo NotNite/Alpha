@@ -21,6 +21,9 @@ public class MemoryWindow : Window {
     private string? _editingStr;
     private Dictionary<long, byte> _stagedBytes = new();
 
+    public long? Start { get; private set; }
+    public long? End { get; private set; }
+
     public MemoryWindow(MemoryModule module, OmegaModule omega) {
         this.Name = "Memory Viewer";
         this._module = module;
@@ -81,7 +84,7 @@ public class MemoryWindow : Window {
         var rows = (int)Math.Floor(int.MaxValue / 16f / 2);
         var white = new Vector4(1f, 1f, 1f, 1f);
         var grey = new Vector4(0.5f, 0.5f, 0.5f, 1f);
-        var aqua = new Vector4(1f, 1f, 1f, 1f);
+        var aqua = new Vector4(0f, 1f, 1f, 1f);
         var orange = new Vector4(1f, 0.5f, 0f, 1f);
 
         var clipper = new ListClipper(rows * 16, 16);
@@ -98,7 +101,7 @@ public class MemoryWindow : Window {
                 ? value
                 : new byte[16];
 
-            ImGui.TextColored(aqua, $"{realRow:X12}");
+            ImGui.TextColored(white, $"{realRow:X12}");
             ImGui.SameLine(bytesX);
 
             var bytesPos = bytesX;
@@ -139,16 +142,19 @@ public class MemoryWindow : Window {
 
                     ImGui.PopItemWidth();
                 } else {
-                    var color = staged
-                        ? orange
-                        : b != 0
-                            ? white
-                            : grey;
+                    var color = white;
+                    if (b == 0) color = grey;
+                    if (staged) color = orange;
+                    if (this._selectedByte == pos) color = aqua;
                     ImGui.TextColored(color, b.ToString("X2"));
 
                     if (ImGui.IsItemClicked()) {
                         this._editingByte = pos;
                         this._editingStr = b.ToString("X2");
+                    }
+
+                    if (ImGui.IsItemClicked(ImGuiMouseButton.Right)) {
+                        this._selectedByte = pos;
                     }
                 }
 
@@ -184,6 +190,8 @@ public class MemoryWindow : Window {
             var roundedStart = startRow - startRow % 16;
             var roundedEnd = endRow - endRow % 16 + 16;
             this._module.EnsureMemory(roundedStart, roundedEnd);
+            this.Start = roundedStart;
+            this.End = roundedEnd;
         }
 
         ImGui.PopStyleVar(2);
@@ -219,6 +227,40 @@ public class MemoryWindow : Window {
             this._scrollTo = Math.Max(0, a - this._base!.Value);
         }
 
-        ImGui.Separator();
+        if (this._selectedByte is not null) {
+            ImGui.Separator();
+
+            var eight = this._module.GetBytes(this._selectedByte.Value, 8);
+            var four = this._module.GetBytes(this._selectedByte.Value, 4);
+            var two = this._module.GetBytes(this._selectedByte.Value, 2);
+            var one = this._module.GetBytes(this._selectedByte.Value, 1)[0];
+
+            var keys = new Dictionary<string, string> {
+                { "Address", $"{this._selectedByte:X12}" },
+                { "Binary", Convert.ToString(one, 2).PadLeft(8, '0') },
+                { "Signed Byte", ((sbyte)one).ToString() },
+                { "Unsigned Byte", one.ToString() },
+                { "Signed Short", BitConverter.ToInt16(two).ToString() },
+                { "Unsigned Short", BitConverter.ToUInt16(two).ToString() },
+                { "Signed Int", BitConverter.ToInt32(four).ToString() },
+                { "Unsigned Int", BitConverter.ToUInt32(four).ToString() },
+                { "Signed Long", BitConverter.ToInt64(eight).ToString() },
+                { "Unsigned Long", BitConverter.ToUInt64(eight).ToString() },
+                { "Float", BitConverter.ToSingle(four).ToString(CultureInfo.InvariantCulture) },
+                { "Double", BitConverter.ToDouble(eight).ToString(CultureInfo.InvariantCulture) },
+                { "Char", ((char)one).ToString() }
+            };
+
+            ImGui.Columns(2, "##MemoryViewerSidebar", false);
+            ImGui.SetColumnWidth(0, 125);
+            foreach (var (key, value) in keys) {
+                ImGui.TextUnformatted(key);
+                ImGui.NextColumn();
+                ImGui.TextUnformatted(value);
+                ImGui.NextColumn();
+            }
+
+            ImGui.Columns(1);
+        }
     }
 }

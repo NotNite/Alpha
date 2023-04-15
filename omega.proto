@@ -8,6 +8,7 @@ message C2SMessage {
     Ping ping = 1;
     MemoryRequest memory_request = 2;
     MemoryWrite memory_write = 3;
+    MemoryPositionUpdate memory_position_update = 4;
   }
 }
 
@@ -50,4 +51,13 @@ message WritePayload {
 message MemoryUpdate {
   int64 address = 1;
   bytes data = 2;
+}
+
+message MemoryPositionUpdate {
+  repeated PositionUpdatePayload payloads = 1;
+}
+
+message PositionUpdatePayload {
+  int64 start = 1;
+  int64 end = 2;
 }

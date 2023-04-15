@@ -1,17 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using Alpha.Proto;
+using Dalamud.Game;
 using Dalamud.Logging;
 using Google.Protobuf;
 using WebSocketSharp;
 using WebSocketSharp.Server;
+using ErrorEventArgs = WebSocketSharp.ErrorEventArgs;
 
 namespace Omega;
 
 public class Server : IDisposable {
     private WebSocketServer _server;
-    private readonly OmegaConnection _connection;
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool VirtualProtect(IntPtr lpAddress, uint dwSize, uint flNewProtect,
@@ -19,74 +21,87 @@ public class Server : IDisposable {
 
     public Server() {
         this._server = new WebSocketServer(41784);
-        this._connection = new OmegaConnection();
-        this._server.AddWebSocketService("/", () => this._connection);
+        this._server.AddWebSocketService<OmegaConnection>("/");
         this._server.Start();
     }
 
-    public void Update() {
-        this._connection.Update();
-    }
-
     class OmegaConnection : WebSocketBehavior {
-        private long? _reqStart;
-        private long? _reqEnd;
-        private byte[]? _lastReq;
+        private List<UpdateEntry> _updates = new();
 
-        public void Update() {
-            if (this._reqStart is null || this._reqEnd is null) return;
+        public OmegaConnection() {
+            Services.Framework.Update += this.Update;
+        }
+        
+        ~OmegaConnection() {
+            Services.Framework.Update -= this.Update;
+        }
+
+        struct UpdateEntry {
+            public long Start;
+            public long End;
+            public byte[]? Data;
+
+            public void Update(byte[] data) {
+                this.Data = data;
+            }
+
+            public void Reset() {
+                this.Data = null;
+            }
+        }
+
+        public void Update(Framework framework) {
             // reset state on disconnect
             if (this.State != WebSocketState.Open) {
-                this._reqStart = null;
-                this._reqEnd = null;
-                this._lastReq = null;
+                this._updates.Clear();
                 return;
             }
 
-            var len = this._reqEnd.Value - this._reqStart.Value;
-            var bytes = new byte[len];
+            foreach (var update in this._updates) {
+                var len = update.End - update.Start;
+                var bytes = new byte[len];
 
-            for (var i = 0; i < len; i++) {
-                unsafe {
-                    var addr = this._reqStart.Value + i;
-                    var ptr = (byte*)addr;
-                    try {
-                        bytes[i] = *ptr;
-                    } catch {
-                        // ignored
-                    }
-                }
-            }
-
-            if (this._lastReq?.Length != bytes.Length) {
-                this._lastReq = null;
-            }
-
-            if (this._lastReq is not null) {
-                var changed = false;
                 for (var i = 0; i < len; i++) {
-                    if (bytes[i] != this._lastReq[i]) {
-                        changed = true;
-                        break;
+                    unsafe {
+                        var addr = update.Start + i;
+                        var ptr = (byte*)addr;
+                        try {
+                            bytes[i] = *ptr;
+                        } catch {
+                            // ignored
+                        }
                     }
                 }
 
-                if (changed) {
-                    var msg2 = new S2CMessage {
-                        MemoryUpdate = new MemoryUpdate {
-                            Address = this._reqStart.Value,
-                            Data = ByteString.CopyFrom(bytes)
-                        }
-                    };
+                if (update.Data?.Length != bytes.Length) {
+                    update.Reset();
+                }
 
-                    // only send after handdshake
-                    if (this.State == WebSocketState.Open) {
-                        this.Send(msg2.ToByteArray());
+                if (update.Data is not null) {
+                    var changed = false;
+                    for (var i = 0; i < len; i++) {
+                        if (bytes[i] != update.Data[i]) {
+                            changed = true;
+                            break;
+                        }
+                    }
+
+                    if (changed) {
+                        var msg2 = new S2CMessage {
+                            MemoryUpdate = new MemoryUpdate {
+                                Address = update.Start,
+                                Data = ByteString.CopyFrom(bytes)
+                            }
+                        };
+
+                        // only send after handdshake
+                        if (this.State == WebSocketState.Open) {
+                            this.Send(msg2.ToByteArray());
+                            update.Update(bytes);
+                        }
                     }
                 }
             }
-
-            this._lastReq = bytes;
         }
 
         protected override void OnMessage(MessageEventArgs e) {
@@ -108,9 +123,6 @@ public class Server : IDisposable {
                 }
 
                 case C2SMessage.MessageOneofCase.MemoryRequest: {
-                    this._reqStart = msg.MemoryRequest.Start;
-                    this._reqEnd = msg.MemoryRequest.End;
-
                     var len = msg.MemoryRequest.End - msg.MemoryRequest.Start;
                     var bytes = new byte[len];
                     for (var i = 0; i < len; i++) {
@@ -157,10 +169,35 @@ public class Server : IDisposable {
                     break;
                 }
 
+                case C2SMessage.MessageOneofCase.MemoryPositionUpdate: {
+                    var payloads = msg.MemoryPositionUpdate.Payloads;
+                    var list = new List<UpdateEntry>();
+                    foreach (var payload in payloads) {
+                        var entry = new UpdateEntry {
+                            Start = payload.Start,
+                            End = payload.End,
+                            Data = null
+                        };
+
+                        list.Add(entry);
+                    }
+
+                    this._updates = list;
+                    break;
+                }
+
                 default:
                     PluginLog.Warning("Unknown message type: {Message}", msg.MessageCase);
                     break;
             }
+        }
+
+        protected override void OnError(ErrorEventArgs e) {
+            this._updates.Clear();
+        }
+
+        protected override void OnClose(CloseEventArgs e) {
+            this._updates.Clear();
         }
     }
 
