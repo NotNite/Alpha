@@ -1,63 +1,159 @@
 ﻿using System;
 using System.IO;
-using System.IO.Pipes;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using Alpha.Proto;
 using Dalamud.Logging;
 using Google.Protobuf;
+using WebSocketSharp;
+using WebSocketSharp.Server;
 
 namespace Omega;
 
 public class Server : IDisposable {
-    public bool IsConnected { get; private set; }
-    private CancellationTokenSource? _ct;
-    private NamedPipeServerStream? _server;
+    private WebSocketServer _server;
+    private readonly OmegaConnection _connection;
 
-    public void Run() {
-        if (this._ct is not null || this._server is not null) {
-            PluginLog.Warning("Trying to start server while it's already running?");
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool VirtualProtect(IntPtr lpAddress, uint dwSize, uint flNewProtect,
+        out uint lpflOldProtect);
 
-            this._server?.Disconnect();
-            this._server?.Dispose();
-
-            this._ct?.Cancel();
-            this._ct?.Dispose();
-        }
-
-        this._ct = new CancellationTokenSource();
-        Task.Run(() => {
-            while (true) {
-                try {
-                    this.RunInternal();
-                } catch (Exception e) {
-                    PluginLog.Error(e, "Omega server loop error");
-                }
-
-                this._server?.Disconnect();
-                this._server?.Dispose();
-            }
-        }, this._ct.Token);
+    public Server() {
+        this._server = new WebSocketServer(41784);
+        this._connection = new OmegaConnection();
+        this._server.AddWebSocketService("/", () => this._connection);
+        this._server.Start();
     }
 
-    private void RunInternal() {
-        this._server = new NamedPipeServerStream("Omega");
-        PluginLog.Debug("Waiting for connection");
+    public void Update() {
+        this._connection.Update();
+    }
 
-        this._server.WaitForConnectionAsync().Wait(this._ct!.Token);
-        PluginLog.Debug("Got connection to pipe");
+    class OmegaConnection : WebSocketBehavior {
+        private long? _reqStart;
+        private long? _reqEnd;
+        private byte[]? _lastReq;
 
-        while (this._server.IsConnected) {
-            var msg = C2SMessage.Parser.ParseDelimitedFrom(this._server);
+        public void Update() {
+            if (this._reqStart is null || this._reqEnd is null) return;
+            // reset state on disconnect
+            if (this.State != WebSocketState.Open) {
+                this._reqStart = null;
+                this._reqEnd = null;
+                this._lastReq = null;
+                return;
+            }
+
+            var len = this._reqEnd.Value - this._reqStart.Value;
+            var bytes = new byte[len];
+
+            for (var i = 0; i < len; i++) {
+                unsafe {
+                    var addr = this._reqStart.Value + i;
+                    var ptr = (byte*)addr;
+                    try {
+                        bytes[i] = *ptr;
+                    } catch {
+                        // ignored
+                    }
+                }
+            }
+
+            if (this._lastReq?.Length != bytes.Length) {
+                this._lastReq = null;
+            }
+
+            if (this._lastReq is not null) {
+                var changed = false;
+                for (var i = 0; i < len; i++) {
+                    if (bytes[i] != this._lastReq[i]) {
+                        changed = true;
+                        break;
+                    }
+                }
+
+                if (changed) {
+                    var msg2 = new S2CMessage {
+                        MemoryUpdate = new MemoryUpdate {
+                            Address = this._reqStart.Value,
+                            Data = ByteString.CopyFrom(bytes)
+                        }
+                    };
+
+                    // only send after handdshake
+                    if (this.State == WebSocketState.Open) {
+                        this.Send(msg2.ToByteArray());
+                    }
+                }
+            }
+
+            this._lastReq = bytes;
+        }
+
+        protected override void OnMessage(MessageEventArgs e) {
+            var msg = C2SMessage.Parser.ParseFrom(e.RawData);
 
             switch (msg.MessageCase) {
                 case C2SMessage.MessageOneofCase.Ping: {
                     PluginLog.Debug("Got ping, sending pong");
-                    new S2CMessage {
+                    var msg2 = new S2CMessage {
                         Pong = new Pong {
-                            GameVersion = File.ReadAllText("ffxivgame.ver")
+                            GameVersion = File.ReadAllText("ffxivgame.ver"),
+                            TextBase = Services.SigScanner.TextSectionBase,
+                            DataBase = Services.SigScanner.DataSectionBase
                         }
-                    }.WriteDelimitedTo(this._server);
+                    };
+                    this.Send(msg2.ToByteArray());
+
+                    break;
+                }
+
+                case C2SMessage.MessageOneofCase.MemoryRequest: {
+                    this._reqStart = msg.MemoryRequest.Start;
+                    this._reqEnd = msg.MemoryRequest.End;
+
+                    var len = msg.MemoryRequest.End - msg.MemoryRequest.Start;
+                    var bytes = new byte[len];
+                    for (var i = 0; i < len; i++) {
+                        unsafe {
+                            var addr = (nint)msg.MemoryRequest.Start + i;
+                            var ptr = (byte*)addr;
+                            try {
+                                bytes[i] = *ptr;
+                            } catch {
+                                // ignored
+                            }
+                        }
+                    }
+
+                    PluginLog.Debug("Got memory request, sending result");
+                    var msg2 = new S2CMessage {
+                        MemoryResult = new MemoryResult {
+                            Data = ByteString.CopyFrom(bytes),
+                            Uuid = msg.MemoryRequest.Uuid
+                        }
+                    };
+                    this.Send(msg2.ToByteArray());
+
+                    break;
+                }
+
+                case C2SMessage.MessageOneofCase.MemoryWrite: {
+                    var payloads = msg.MemoryWrite.Payloads;
+
+                    foreach (var payload in payloads) {
+                        var addr = (nint)payload.Address;
+                        var data = payload.Data.ToByteArray()[0];
+                        PluginLog.Verbose("Writing {Data:X} to {Address:X}", data, payload.Address);
+
+                        VirtualProtect(addr, 1, 0x40, out var oldProtect);
+                        unsafe {
+                            var ptr = (byte*)addr;
+                            *ptr = data;
+                        }
+
+                        VirtualProtect(addr, 1, oldProtect, out _);
+                    }
+
                     break;
                 }
 
@@ -66,19 +162,9 @@ public class Server : IDisposable {
                     break;
             }
         }
-
-        PluginLog.Debug("Connection closed");
     }
 
     public void Dispose() {
-        try {
-            this._server?.Close();
-            this._ct?.Cancel();
-        } catch {
-            // ignored
-        }
-
-        this._server?.Dispose();
-        this._ct?.Dispose();
+        this._server.Stop();
     }
 }

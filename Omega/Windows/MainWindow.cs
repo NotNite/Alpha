@@ -14,9 +14,7 @@ public class MainWindow : Window, IDisposable {
     }
 
     public override void Draw() {
-        if (ImGui.Button("Reload server")) {
-            Plugin.ReloadServer();
-        }
+        ImGui.Text("forgot to put something here");
     }
 
     public void Dispose() { }

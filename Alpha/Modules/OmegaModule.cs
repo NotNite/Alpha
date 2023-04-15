@@ -1,76 +1,93 @@
-﻿using System.IO.Pipes;
-using Alpha.Core;
+﻿using Alpha.Core;
 using Alpha.Proto;
 using Google.Protobuf;
 using ImGuiNET;
 using Serilog;
+using WebSocketSharp;
 
 namespace Alpha.Modules;
 
 public class OmegaModule : SimpleModule {
-    private CancellationTokenSource? _ct;
-    private NamedPipeClientStream? _client;
+    public bool IsConnected => this._client?.IsAlive ?? false;
 
-    public OmegaModule() : base("Omega", "Omega") { }
+    private WebSocket? _client;
+
+    public long? TextBase { get; private set; }
+    public long? DataBase { get; private set; }
+
+    public delegate void MessageHandler(S2CMessage msg);
+
+    public event MessageHandler? MessageReceived;
+
+    public OmegaModule() : base("Omega Settings", "Omega") { }
 
     internal override void SimpleDraw() {
-        ImGui.TextUnformatted($"Connected: {this._client?.IsConnected ?? false}");
+        ImGui.TextUnformatted($"Connected: {this.IsConnected}");
 
         if (ImGui.Button("Connect")) {
             this.Connect();
         }
     }
 
-    private void Connect() {
-        if (this._ct is not null || this._client is not null) {
-            Log.Warning("Trying to start client while it's already running?");
+    public byte[] GetBytes(long start, long end) {
+        var uuid = Guid.NewGuid().ToString();
+        var msg = new C2SMessage {
+            MemoryRequest = new MemoryRequest {
+                Start = start,
+                End = end,
+                Uuid = uuid
+            }
+        };
 
-            this._client?.Close();
-            this._client?.Dispose();
+        this.Send(msg);
+        var wait = new AutoResetEvent(false);
+        byte[] result = null!;
 
-            this._ct?.Cancel();
-            this._ct?.Dispose();
+        void OnMessageReceived(S2CMessage msg2) {
+            if (msg2.MessageCase == S2CMessage.MessageOneofCase.MemoryResult
+                && msg2.MemoryResult.Uuid == uuid) {
+                result = msg2.MemoryResult.Data.ToByteArray();
+                wait.Set();
+            }
         }
 
-        this._ct = new CancellationTokenSource();
-        Task.Run(() => {
-            try {
-                this.ConnectInternal();
-            } catch (Exception e) {
-                Log.Error(e, "Omega connect loop error");
-            }
+        this.MessageReceived += OnMessageReceived;
+        wait.WaitOne();
+        this.MessageReceived -= OnMessageReceived;
 
-            this._ct.Dispose();
-            this._ct = null;
-        }, this._ct.Token);
+        return result;
     }
 
-    private void ConnectInternal() {
-        this._client = new NamedPipeClientStream("Omega");
+    private void Connect() {
+        this._client?.Close();
 
-        Log.Debug("Connecting to Omega...");
-        this._client.Connect();
-        Log.Debug("Connected to Omega!");
+        this._client = new WebSocket("ws://localhost:41784");
+        this._client.OnOpen += (_, _) => {
+            Log.Debug("Connected to Omega!");
+            this.Send(new C2SMessage {
+                Ping = new Ping()
+            });
+        };
 
-        new C2SMessage {
-            Ping = new Ping()
-        }.WriteDelimitedTo(this._client);
-
-        while (this._client.IsConnected) {
-            var msg = S2CMessage.Parser.ParseDelimitedFrom(this._client);
+        this._client.OnMessage += (_, e) => {
+            var msg = S2CMessage.Parser.ParseFrom(e.RawData);
+            this.MessageReceived?.Invoke(msg);
 
             switch (msg.MessageCase) {
                 case S2CMessage.MessageOneofCase.Pong: {
                     Log.Debug("Got pong: {GameVersion}", msg.Pong.GameVersion);
+                    this.TextBase = msg.Pong.TextBase;
+                    this.DataBase = msg.Pong.DataBase;
                     break;
                 }
-
-                default:
-                    Log.Warning("Unknown message type: {Message}", msg);
-                    break;
             }
-        }
+        };
 
-        this._client.Close();
+        this._client.Connect();
+    }
+
+    public void Send(C2SMessage msg) {
+        var bytes = msg.ToByteArray();
+        this._client?.Send(bytes);
     }
 }

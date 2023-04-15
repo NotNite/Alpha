@@ -19,6 +19,12 @@
         "requested": "[2.54.0, )",
         "resolved": "2.54.0",
         "contentHash": "E+c9vTTSM1AHX5085MeF4J6QS0qACiz0Svm2zk+/F6gjuSo178gMLn7n6jMOSdF6OEHde5Cm86ouD8X49SrVbA=="
+      },
+      "WebSocketSharp": {
+        "type": "Direct",
+        "requested": "[1.0.3-rc11, )",
+        "resolved": "1.0.3-rc11",
+        "contentHash": "7VCF7f7zVMOvLGD8LeGS4DVXc8lOcB6kXnUMeTxigu+PMiU+6wW5Olq2gYrDU8vDRKOwFY+5RyBaLyzb8skEzA=="
       }
     }
   }
