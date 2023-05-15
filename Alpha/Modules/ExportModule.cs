@@ -18,7 +18,7 @@ public class ExportModule : SimpleModule {
                 var file = Services.GameData.GetFile(line);
                 var dir = Path.GetDirectoryName(line);
                 var name = Path.GetFileName(line);
-                
+
                 Directory.CreateDirectory(Path.Combine(outDir, dir));
                 File.WriteAllBytes(
                     Path.Combine(outDir, dir, name),
@@ -58,6 +58,19 @@ public class ExportModule : SimpleModule {
                 }
 
                 File.WriteAllBytes(path, file.Data);
+            }
+        }
+
+        ImGui.SameLine();
+
+        if (ImGui.Button("Batch export from file")) {
+            var dialogResult = Dialog.FileOpen();
+            if (dialogResult?.Path is not null) {
+                var lines = File.ReadAllLines(dialogResult.Path);
+                var dir = Dialog.FolderPicker();
+                if (dir?.Path is not null) {
+                    this.BulkExport(lines, dir.Path);
+                }
             }
         }
 
