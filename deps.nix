@@ -2,6 +2,8 @@
 # Please dont edit it manually, your changes might get overwritten!
 
 { fetchNuGet }: [
+  (fetchNuGet { pname = "Google.Protobuf"; version = "3.22.3"; sha256 = "0zig2w4yzxfr4gvjjj617cxbq8g705bsci6mmwcm4pn17sd8pbm1"; })
+  (fetchNuGet { pname = "Grpc.Tools"; version = "2.54.0"; sha256 = "0y3v8diyar2pmrh1bi0rzwahirvr7bpgjc3zc1mrqa239531c3lb"; })
   (fetchNuGet { pname = "ImGui.NET"; version = "1.89.4"; sha256 = "0mclifyrnw3l2r1hhklra4yml0g1rbq4wi11zdpad7smdgi733gs"; })
   (fetchNuGet { pname = "Lumina"; version = "3.10.2"; sha256 = "0wf9pn01lqy1ifpp9v8kgbvik0fbdbq1ywglhdil6gjsa53dav8d"; })
   (fetchNuGet { pname = "Lumina.Excel"; version = "6.3.2"; sha256 = "0wmxwxxagqkww2fgci6yfqa1y1ggz52xv8drkfjmvv0kvn2h119g"; })
@@ -100,4 +102,5 @@
   (fetchNuGet { pname = "Vortice.DirectX"; version = "2.3.0"; sha256 = "07inc3msd3baizx03is5djbw6jg9ihzx7dxvalsdz4n7b61lli3h"; })
   (fetchNuGet { pname = "Vortice.DXGI"; version = "2.3.0"; sha256 = "0j47ywcs1rq8q4hjj0axchjv08dnvyd33yy4nxilz4synyiidf77"; })
   (fetchNuGet { pname = "Vortice.Mathematics"; version = "1.4.25"; sha256 = "0vl6g087disxyzskvkbnwym74s47lkza0ly3nk4y0y88zibcggrj"; })
+  (fetchNuGet { pname = "WebSocketSharp"; version = "1.0.3-rc11"; sha256 = "0ri208cslr30mxssgndnmd01m5k3wvhmp1iyqzia633f6459qrr4"; })
 ]

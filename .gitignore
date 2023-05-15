@@ -3,4 +3,9 @@ obj/
 .vs/
 .idea/
 *.user
+
+imgui.ini
+
+# CI & Nix artifacts
 artifacts/
+result
