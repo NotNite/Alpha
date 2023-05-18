@@ -91,6 +91,14 @@ public class ExcelWindow : Window {
             if (ImGui.Selectable(sheet, sheet == this._selectedSheet?.Name)) {
                 this.OpenSheet(sheet);
             }
+            
+            if (ImGui.BeginPopupContextItem($"##ExcelModule_Sidebar_{sheet}")) {
+                if (ImGui.Selectable("Open in new window")) {
+                    this._module.OpenNewWindow(sheet);
+                }
+
+                ImGui.EndPopup();
+            }
         }
 
         ImGui.EndChild();
@@ -384,6 +392,13 @@ public class ExcelWindow : Window {
         for (var i = 0u; i < this._selectedSheet.RowCount; i++) {
             var row = this.GetRow(this._selectedSheet, this._rowMapping, i);
             if (row is null) continue;
+
+            var rowStr = row.RowId.ToString();
+            if (row.SubRowId != 0) rowStr += $".{row.SubRowId}";
+            if (rowStr.ToLower().Contains(filter.ToLower())) {
+                this._filteredRows!.Add(i);
+                continue;
+            }
 
             for (var col = 0; col < colCount; col++) {
                 var obj = row.ReadColumnRaw(col);
