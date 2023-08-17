@@ -137,7 +137,6 @@ public class Server : IDisposable {
                         }
                     }
 
-                    PluginLog.Debug("Got memory request, sending result");
                     var msg2 = new S2CMessage {
                         MemoryResult = new MemoryResult {
                             Data = ByteString.CopyFrom(bytes),

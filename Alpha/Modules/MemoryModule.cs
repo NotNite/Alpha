@@ -1,4 +1,5 @@
-﻿using Alpha.Core;
+﻿using System.Collections.Concurrent;
+using Alpha.Core;
 using Alpha.Proto;
 using Alpha.Windows;
 using Google.Protobuf;
@@ -10,7 +11,7 @@ namespace Alpha.Modules;
 public class MemoryModule : WindowedModule<MemoryWindow> {
     private OmegaModule _omega;
 
-    public Dictionary<long, byte[]> Memory = new();
+    public ConcurrentDictionary<long, byte[]> Memory = new();
     private List<(long, long)> _requested = new();
     private List<PositionUpdatePayload> _updates = new();
 
@@ -41,28 +42,29 @@ public class MemoryModule : WindowedModule<MemoryWindow> {
     }
 
     public void EnsureMemory(long start, long end) {
-        var key = (start, end);
-        if (this._requested.Contains(key)) {
-            return;
-        }
-
-        Task.Run(() => {
-            try {
-                var bytes = this._omega.GetBytes(start, end);
-                for (var j = 0; j < bytes.Length; j += 0x10) {
-                    var key2 = start + j;
-                    var section = bytes.AsSpan(j, 0x10).ToArray();
-                    this.Memory[key2] = section;
-                }
-            } catch (Exception e) {
-                Log.Error(e, "Failed to get memory");
+        lock (this._requested) {
+            var key = (start, end);
+            if (this._requested.Contains(key)) {
+                return;
             }
 
-            this._requested.Remove(key);
-        });
+            Task.Run(() => {
+                try {
+                    var bytes = this._omega.GetBytes(start, end);
+                    for (var j = 0; j < bytes.Length; j += 0x10) {
+                        var key2 = start + j;
+                        var section = bytes.AsSpan(j, 0x10).ToArray();
+                        this.Memory[key2] = section;
+                    }
+                } catch (Exception e) {
+                    Log.Error(e, "Failed to get memory");
+                }
 
-        this._requested.Add(key);
-        this.Memory.Clear();
+                this._requested.Remove(key);
+            });
+
+            this._requested.Add(key);
+        }
     }
 
     public void WriteMemory(Dictionary<long, byte> bytes) {
@@ -91,13 +93,28 @@ public class MemoryModule : WindowedModule<MemoryWindow> {
     internal override void Draw() {
         base.Draw();
 
-        var newUpdates = this.Windows.Where(x => x.Start is not null && x.End is not null)
+        var positions = this.Windows.Where(x => x.Start is not null && x.End is not null)
             .Select(x => (x.Start!.Value, x.End!.Value))
-            .Select(x => new PositionUpdatePayload {
-                Start = x.Item1,
-                End = x.Item2
-            })
             .ToList();
+
+        var newUpdates = new List<PositionUpdatePayload>();
+        foreach (var (start, end) in positions) {
+            var overlaps = positions
+                .Where(x =>
+                    (x.Item1 >= start && x.Item1 <= end) ||
+                    (x.Item2 >= start && x.Item2 <= end)
+                )
+                .ToList();
+
+            var newStart = Math.Min(overlaps.Min(x => x.Item1), start);
+            var newEnd = Math.Max(overlaps.Max(x => x.Item2), end);
+            if (newUpdates.Any(x => x.Start == newStart && x.End == newEnd)) continue;
+
+            newUpdates.Add(new PositionUpdatePayload {
+                Start = newStart,
+                End = newEnd
+            });
+        }
 
         if (newUpdates.SequenceEqual(this._updates)) return;
 
