@@ -12,7 +12,7 @@ public static class UiUtils {
     public static void HorizontalSplitter(ref float width) {
         ImGui.Button("##splitter", new Vector2(5, -1));
 
-        ImGui.SetItemAllowOverlap();
+        ImGui.SetNextItemAllowOverlap();
 
         if (ImGui.IsItemActive()) {
             var mouseDelta = ImGui.GetIO().MouseDelta.X;

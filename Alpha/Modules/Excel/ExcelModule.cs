@@ -138,14 +138,14 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     }
 
                     if (ImGui.BeginPopupContextItem($"{row}_{col}")) {
-                        ImGui.MenuItem(path, false);
+                        ImGui.MenuItem(path.Path, false);
 
                         if (ImGui.MenuItem("Copy icon ID")) {
                             ImGui.SetClipboardText(iconId.ToString());
                         }
 
                         if (ImGui.MenuItem("Copy icon path")) {
-                            ImGui.SetClipboardText(path);
+                            ImGui.SetClipboardText(path.Path);
                         }
 
                         if (ImGui.MenuItem("Open in filesystem browser")) {
@@ -181,7 +181,8 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
 
                 var keyValues = new Dictionary<string, object>();
                 // We need to be being parsed *from* a sheet definition, so these !s are safe
-                var thisRow = sheet.GetRow((uint)row)!;
+                var thisRow = sheet.GetRow((uint)row);
+                if (thisRow is null) break; // wtf?
 
                 for (var i = 0; i < sheet.ColumnCount; i++) {
                     if (!this.SheetDefinitions.ContainsKey(sheet.Name)) continue;

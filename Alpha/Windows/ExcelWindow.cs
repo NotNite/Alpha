@@ -91,7 +91,7 @@ public class ExcelWindow : Window {
             if (ImGui.Selectable(sheet, sheet == this._selectedSheet?.Name)) {
                 this.OpenSheet(sheet);
             }
-            
+
             if (ImGui.BeginPopupContextItem($"##ExcelModule_Sidebar_{sheet}")) {
                 if (ImGui.Selectable("Open in new window")) {
                     this._module.OpenNewWindow(sheet);
@@ -193,7 +193,7 @@ public class ExcelWindow : Window {
 
         var rowCount = this._selectedSheet.RowCount;
         var colCount = this._selectedSheet.ColumnCount;
-        colCount = Math.Min(colCount, 63); // I think this is an ImGui limitation?
+        colCount = Math.Min(colCount, 2048 - 1); // I think this is an ImGui limitation?
 
         var flags = ImGuiTableFlags.Borders
                     | ImGuiTableFlags.NoSavedSettings
@@ -257,10 +257,11 @@ public class ExcelWindow : Window {
 
             for (var col = 0; col < colCount; col++) {
                 var obj = row.ReadColumnRaw(col);
+                var prev = ImGui.GetCursorPosY();
+
                 if (obj != null) {
                     var converter = sheetDefinition?.GetConverterForColumn(col);
 
-                    var prev = ImGui.GetCursorPosY();
                     this._module.DrawEntry(
                         this,
                         this._selectedSheet,
@@ -269,18 +270,17 @@ public class ExcelWindow : Window {
                         obj,
                         converter
                     );
-                    var next = ImGui.GetCursorPosY();
+                }
 
-                    // Handle the case where we click a link, to not overwrite our height
-                    if (this._itemHeight is not null) {
-                        var height = next - prev;
-                        var needed = this._itemHeight.Value - height;
-                        if (needed > 0) {
-                            ImGui.Dummy(new Vector2(0, needed));
-                        }
-
-                        if (height > newHeight) newHeight = height;
+                var next = ImGui.GetCursorPosY();
+                if (this._itemHeight is not null) {
+                    var height = next - prev;
+                    var needed = this._itemHeight.Value - height;
+                    if (needed > 0) {
+                        ImGui.Dummy(new Vector2(0, needed));
                     }
+
+                    if (height > newHeight) newHeight = height;
                 }
 
                 if (col < colCount - 1) ImGui.TableNextColumn();
