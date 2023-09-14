@@ -58,7 +58,7 @@ public class FilesystemWindow : Window {
         }
 
         var cra = ImGui.GetContentRegionAvail();
-        ImGui.BeginChild("##FilesystemModule_Sidebar", cra with { X = this._sidebarWidth }, true);
+        ImGui.BeginChild("##FilesystemModule_Sidebar", cra with {X = this._sidebarWidth}, true);
 
         if (this._module.ResLogger.CurrentPathCache.Count > 0) {
             foreach (var rootCategory in this._rootCategories) {
@@ -66,6 +66,8 @@ public class FilesystemWindow : Window {
                     this.RecursiveTree(rootCategory);
                     ImGui.TreePop();
                 }
+
+                this.DirectoryContextMenu(rootCategory);
             }
         } else {
             ImGui.Text("No ResLogger data :(");
@@ -126,7 +128,7 @@ public class FilesystemWindow : Window {
             }
 
             if (this._selectedPath.EndsWith("tex")) {
-                var texFile = (TexFile)this._selectedFile;
+                var texFile = (TexFile) this._selectedFile;
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
 
                 if (ImGui.Button("Export as .png")) {
@@ -141,9 +143,7 @@ public class FilesystemWindow : Window {
     }
 
     internal List<string> GetContentsOfDirectory(string directory) {
-        if (this._cache.ContainsKey(directory)) {
-            return this._cache[directory];
-        }
+        if (this._cache.TryGetValue(directory, out var cached)) return cached;
 
         var partCount = directory.Split("/").Length;
 
@@ -182,11 +182,14 @@ public class FilesystemWindow : Window {
 
     private void RecursiveTree(string folder) {
         foreach (var item in this.GetContentsOfDirectory(folder)) {
+            var path = folder + "/" + item[..^1];
             if (item.EndsWith("/")) {
                 if (ImGui.TreeNode(item)) {
-                    this.RecursiveTree(folder + "/" + item[..^1]);
+                    this.RecursiveTree(path);
                     ImGui.TreePop();
                 }
+
+                this.DirectoryContextMenu(path);
             } else {
                 if (ImGui.Selectable(item)) {
                     this.OpenFile(folder + "/" + item);
@@ -202,6 +205,32 @@ public class FilesystemWindow : Window {
             this._selectedFile = Services.GameData.GetFile<TexFile>(this._selectedPath);
         } else {
             this._selectedFile = Services.GameData.GetFile(this._selectedPath);
+        }
+    }
+
+    private void DirectoryContextMenu(string path) {
+        var pathWithSlash = path + "/";
+
+        if (ImGui.BeginPopupContextItem($"##FilesystemWindow_Sidebar_{path}")) {
+            if (ImGui.Selectable("Export directory")) {
+                var files = this._module.ResLogger.CurrentPathCache
+                    .Where(x => x.StartsWith(pathWithSlash));
+
+                var outFolder = Dialog.FolderPicker();
+                if (outFolder?.Path is not null) {
+                    foreach (var file in files) {
+                        var data = Services.GameData.GetFile(file)?.Data;
+                        if (data is not null) {
+                            var relativePath = file.Replace(pathWithSlash, string.Empty);
+                            var outPath = Path.Combine(outFolder.Path, relativePath);
+                            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+                            File.WriteAllBytes(outPath, data);
+                        }
+                    }
+                }
+            }
+
+            ImGui.EndPopup();
         }
     }
 }
