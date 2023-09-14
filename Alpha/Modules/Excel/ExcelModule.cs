@@ -95,7 +95,8 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
         int row,
         int col,
         object data,
-        ConverterDefinition? converter
+        ConverterDefinition? converter,
+        bool insideLink = false
     ) {
         switch (converter) {
             // Was originally 'link when link.Target != null', Rider wants me to turn it into this monstrous thing
@@ -107,8 +108,36 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     // ignored
                 }
 
-                this.DrawLink(sourceWindow, link.Target, targetRow, row, col);
+                if (insideLink && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
+                    // Draw what the link points to
+                    var targetSheet = this.GetSheet(link.Target);
+                    var targetRowObj = targetSheet?.GetRow((uint)targetRow);
+                    var sheetDef = this.SheetDefinitions.TryGetValue(link.Target, out var definition)
+                        ? definition
+                        : null;
 
+                    if (sheetDef is not null) {
+                        var targetCol = sheetDef.DefaultColumn is not null
+                            ? sheetDef.GetColumnForName(sheetDef.DefaultColumn) ?? 0
+                            : 0;
+                        var targetData = targetRowObj?.ReadColumnRaw(targetCol);
+
+                        if (targetData is not null) {
+                            this.DrawEntry(
+                                sourceWindow,
+                                targetSheet!,
+                                targetRow,
+                                targetCol,
+                                targetData,
+                                sheetDef.GetConverterForColumn(targetCol),
+                                true
+                            );
+                            return;
+                        }
+                    }
+                }
+
+                this.DrawLink(sourceWindow, link.Target, targetRow, row, col);
                 break;
             }
 
@@ -279,7 +308,8 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     targetRow,
                     targetCol,
                     data,
-                    sheetDef.GetConverterForColumn(targetCol)
+                    sheetDef.GetConverterForColumn(targetCol),
+                    true
                 );
                 ImGui.EndTooltip();
             }
