@@ -84,7 +84,7 @@ public class ExcelWindow : Window {
         this.DrawSidebarFilter(this._sidebarWidth);
 
         var cra = ImGui.GetContentRegionAvail();
-        ImGui.BeginChild("##ExcelModule_Sidebar", cra with { X = this._sidebarWidth }, true);
+        ImGui.BeginChild("##ExcelModule_Sidebar", cra with {X = this._sidebarWidth}, true);
 
         var sheets = this._filteredSheets?.ToArray() ?? this._module.Sheets;
         foreach (var sheet in sheets) {
@@ -149,8 +149,8 @@ public class ExcelWindow : Window {
         if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0f, 1f));
 
         var flags = this._contentFilter.StartsWith("$")
-            ? ImGuiInputTextFlags.EnterReturnsTrue
-            : ImGuiInputTextFlags.None;
+                        ? ImGuiInputTextFlags.EnterReturnsTrue
+                        : ImGuiInputTextFlags.None;
         if (ImGui.InputText("##ExcelContentFilter", ref this._contentFilter, 1024, flags)) {
             this.ResolveContentFilter();
         }
@@ -203,7 +203,7 @@ public class ExcelWindow : Window {
                     | ImGuiTableFlags.ScrollY;
 
         // +1 here for the row ID column
-        if (!ImGui.BeginTable("##ExcelTable", (int)(colCount + 1), flags)) {
+        if (!ImGui.BeginTable("##ExcelTable", (int) (colCount + 1), flags)) {
             return;
         }
 
@@ -230,7 +230,7 @@ public class ExcelWindow : Window {
             }
         }
 
-        var actualRowCount = this._filteredRows?.Count ?? (int)rowCount;
+        var actualRowCount = this._filteredRows?.Count ?? (int) rowCount;
         var clipper = new ListClipper(actualRowCount, itemHeight: this._itemHeight ?? 0);
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
@@ -238,10 +238,10 @@ public class ExcelWindow : Window {
         foreach (var i in clipper.Rows) {
             var rowId = i;
             if (this._filteredRows is not null) {
-                rowId = (int)this._filteredRows[i];
+                rowId = (int) this._filteredRows[i];
             }
 
-            var row = this.GetRow(this._selectedSheet, this._rowMapping, (uint)rowId);
+            var row = this.GetRow(this._selectedSheet, this._rowMapping, (uint) rowId);
             if (row is null) {
                 ImGui.TableNextRow();
                 continue;
@@ -420,7 +420,7 @@ public class ExcelWindow : Window {
         var luminaTypes = Assembly.GetAssembly(typeof(Lumina.Excel.GeneratedSheets.Addon))?.GetTypes();
         var sheets = luminaTypes?
             .Where(t => t.GetCustomAttributes(typeof(SheetAttribute), false).Length > 0)
-            .ToDictionary(t => ((SheetAttribute)t.GetCustomAttributes(typeof(SheetAttribute), false)[0]).Name);
+            .ToDictionary(t => ((SheetAttribute) t.GetCustomAttributes(typeof(SheetAttribute), false)[0]).Name);
 
         Type? sheetRow = null;
         if (sheets?.TryGetValue(this._selectedSheet!.Name, out var sheetType) == true) {
@@ -436,8 +436,8 @@ public class ExcelWindow : Window {
         Task.Run(async () => {
             try {
                 var globalsType = sheetRow != null
-                    ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
-                    : null;
+                                      ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
+                                      : null;
                 var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
                 expr.Compile(ct.Token);
 
@@ -466,13 +466,13 @@ public class ExcelWindow : Window {
                         object? instance;
                         if (row.SubRowId == 0) {
                             // sheet.GetRow(row.RowId);
-                            var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] { typeof(uint) });
-                            instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId });
+                            var getRow = sheetInstance?.GetType().GetMethod("GetRow", new[] {typeof(uint)});
+                            instance = getRow?.Invoke(sheetInstance, new object[] {row.RowId});
                         } else {
                             // sheet.GetRow(row.RowId, row.SubRowId);
                             var getRow = sheetInstance?.GetType()
-                                .GetMethod("GetRow", new[] { typeof(uint), typeof(uint) });
-                            instance = getRow?.Invoke(sheetInstance, new object[] { row.RowId, row.SubRowId });
+                                .GetMethod("GetRow", new[] {typeof(uint), typeof(uint)});
+                            instance = getRow?.Invoke(sheetInstance, new object[] {row.RowId, row.SubRowId});
                         }
 
                         // new ExcelScriptingGlobal<ExcelRow>(sheet, row);

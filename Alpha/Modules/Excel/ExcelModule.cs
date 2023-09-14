@@ -71,14 +71,14 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     }
 
                     Log.Debug("Resolved sheet definition: {sheetName} -> {sheetDefinition}",
-                        name,
-                        sheetDefinition);
+                              name,
+                              sheetDefinition);
 
                     this.SheetDefinitions[name] = sheetDefinition;
                 } else {
                     Log.Error("Request for sheet definition failed: {sheetName} -> {statusCode}",
-                        name,
-                        result.StatusCode);
+                              name,
+                              result.StatusCode);
 
                     this.SheetDefinitions[name] = null;
                 }
@@ -100,7 +100,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
     ) {
         switch (converter) {
             // Was originally 'link when link.Target != null', Rider wants me to turn it into this monstrous thing
-            case LinkConverterDefinition { Target: not null } link: {
+            case LinkConverterDefinition {Target: not null} link: {
                 var targetRow = 0;
                 try {
                     targetRow = Convert.ToInt32(data);
@@ -111,15 +111,15 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                 if (insideLink && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
                     // Draw what the link points to
                     var targetSheet = this.GetSheet(link.Target);
-                    var targetRowObj = targetSheet?.GetRow((uint)targetRow);
+                    var targetRowObj = targetSheet?.GetRow((uint) targetRow);
                     var sheetDef = this.SheetDefinitions.TryGetValue(link.Target, out var definition)
-                        ? definition
-                        : null;
+                                       ? definition
+                                       : null;
 
                     if (sheetDef is not null) {
                         var targetCol = sheetDef.DefaultColumn is not null
-                            ? sheetDef.GetColumnForName(sheetDef.DefaultColumn) ?? 0
-                            : 0;
+                                            ? sheetDef.GetColumnForName(sheetDef.DefaultColumn) ?? 0
+                                            : 0;
                         var targetData = targetRowObj?.ReadColumnRaw(targetCol);
 
                         if (targetData is not null) {
@@ -210,7 +210,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
 
                 var keyValues = new Dictionary<string, object>();
                 // We need to be being parsed *from* a sheet definition, so these !s are safe
-                var thisRow = sheet.GetRow((uint)row);
+                var thisRow = sheet.GetRow((uint) row);
                 if (thisRow is null) break; // wtf?
 
                 for (var i = 0; i < sheet.ColumnCount; i++) {
@@ -234,9 +234,16 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
             }
 
             default: {
-                var str = data.ToString();
-                if (data is SeString seString) {
-                    str = UiUtils.DisplaySeString(seString);
+                string? str;
+
+                try {
+                    str = data.ToString();
+                    if (data is SeString seString) {
+                        str = UiUtils.DisplaySeString(seString);
+                    }
+                } catch {
+                    // Some sheets (like CustomTalkDefineClient) have broken SeString, so let's catch that
+                    break;
                 }
 
                 if (str is null) break;
@@ -294,10 +301,10 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
             targetSheet is not null
             && this.SheetDefinitions.TryGetValue(link, out var sheetDef)
             && sheetDef is not null) {
-            var targetRowObj = targetSheet.GetRow((uint)targetRow);
+            var targetRowObj = targetSheet.GetRow((uint) targetRow);
             var targetCol = sheetDef.DefaultColumn is not null
-                ? sheetDef.GetColumnForName(sheetDef.DefaultColumn) ?? 0
-                : 0;
+                                ? sheetDef.GetColumnForName(sheetDef.DefaultColumn) ?? 0
+                                : 0;
 
             var data = targetRowObj?.ReadColumnRaw(targetCol);
             if (data is not null && ImGui.IsItemHovered()) {
