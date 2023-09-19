@@ -202,15 +202,13 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
             }
 
             case TomestoneConverterDefinition: {
+                // FIXME this allocates memory like a motherfucker, cache this
                 var dataInt = Convert.ToUInt32(data);
                 var tomestone = dataInt > 0
                                     ? Services.GameData.GetExcelSheet<TomestonesItem>()!
                                         .FirstOrDefault(x => x.Tomestones.Row == dataInt)
                                     : null;
 
-                if (col == 6) {
-                    Log.Information("{dataInt} {tomestone}", dataInt, tomestone);
-                }
                 if (tomestone is null) {
                     this.DrawLink(
                         sourceWindow,
