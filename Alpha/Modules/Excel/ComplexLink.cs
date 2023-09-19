@@ -12,7 +12,8 @@ public class ComplexLink {
 
     public string[] Sheets => this.SheetList ?? new[] { this.SheetSingle! };
 
-    // TODO project & key
+    [JsonPropertyName("project")] public string? Project { get; init; }
+    [JsonPropertyName("key")] public string? Key { get; init; }
 
     [JsonPropertyName("when")] public WhenClause? When { get; init; }
 }

@@ -5,6 +5,7 @@ using Alpha.Utils;
 using Alpha.Windows;
 using ImGuiNET;
 using Lumina.Excel;
+using Lumina.Excel.GeneratedSheets;
 using Lumina.Text;
 using Serilog;
 
@@ -200,6 +201,37 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                 break;
             }
 
+            case TomestoneConverterDefinition: {
+                var dataInt = Convert.ToUInt32(data);
+                var tomestone = dataInt > 0
+                                    ? Services.GameData.GetExcelSheet<TomestonesItem>()!
+                                        .FirstOrDefault(x => x.Tomestones.Row == dataInt)
+                                    : null;
+
+                if (col == 6) {
+                    Log.Information("{dataInt} {tomestone}", dataInt, tomestone);
+                }
+                if (tomestone is null) {
+                    this.DrawLink(
+                        sourceWindow,
+                        "Item",
+                        (int) dataInt,
+                        row,
+                        col
+                    );
+                } else {
+                    this.DrawLink(
+                        sourceWindow,
+                        "Item",
+                        (int) tomestone.Item.Row,
+                        row,
+                        col
+                    );
+                }
+
+                break;
+            }
+
             case ComplexLinkConverterDefinition complex: {
                 var targetRow = 0;
                 try {
@@ -208,26 +240,15 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     // ignored
                 }
 
-                var keyValues = new Dictionary<string, object>();
-                // We need to be being parsed *from* a sheet definition, so these !s are safe
-                var thisRow = sheet.GetRow((uint) row);
-                if (thisRow is null) break; // wtf?
+                var resolvedLinks = complex.ResolveComplexLink(
+                    this,
+                    sheet,
+                    row,
+                    targetRow
+                );
 
-                for (var i = 0; i < sheet.ColumnCount; i++) {
-                    if (!this.SheetDefinitions.ContainsKey(sheet.Name)) continue;
-                    var sheetDef = this.SheetDefinitions[sheet.Name];
-                    if (sheetDef is null) continue;
-
-                    var colName = sheetDef.GetNameForColumn(i);
-                    var colValue = thisRow.ReadColumnRaw(i);
-                    if (colName is null || colValue is null) continue;
-
-                    keyValues[colName] = colValue;
-                }
-
-                var resolvedLinks = complex.ResolveComplexLink(keyValues);
                 foreach (var link in resolvedLinks) {
-                    this.DrawLink(sourceWindow, link, targetRow, row, col);
+                    this.DrawLink(sourceWindow, link.Link, link.TargetRow, row, col);
                 }
 
                 break;
