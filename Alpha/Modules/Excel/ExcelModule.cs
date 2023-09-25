@@ -156,14 +156,22 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     var handle = Services.ImageHandler.DisplayTex(icon);
                     if (handle == IntPtr.Zero) break;
 
-                    var size = new Vector2(icon.Header.Width, icon.Header.Height);
-                    if (size.Y > 512) size *= 512 / size.Y;
-                    ImGui.Image(handle, size);
+                    Vector2 ScaleSize(float maxY) {
+                        var size = new Vector2(icon!.Header.Width, icon.Header.Height);
+                        if (size.Y > maxY) size *= maxY / size.Y;
+                        return size;
+                    }
+
+                    var lineSize = ScaleSize(Services.Configuration.LineHeightImages
+                                                 ? ImGui.GetTextLineHeight() * 2
+                                                 : 512);
+                    ImGui.Image(handle, lineSize);
 
                     var shouldShowMagnum = ImGui.IsKeyDown(ImGui.GetKeyIndex(ImGuiKey.ModAlt)) && ImGui.IsItemHovered();
                     if (shouldShowMagnum) {
+                        var magnumSize = ScaleSize(1024);
                         ImGui.BeginTooltip();
-                        ImGui.Image(handle, size * 2);
+                        ImGui.Image(handle, magnumSize);
                         ImGui.EndTooltip();
                     }
 

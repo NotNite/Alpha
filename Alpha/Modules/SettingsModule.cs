@@ -15,6 +15,12 @@ public class SettingsModule : SimpleModule {
             Services.Configuration.Save();
         }
 
+        var lineHeightImages = Services.Configuration.LineHeightImages;
+        if (ImGui.Checkbox("Lock images to line height", ref lineHeightImages)) {
+            Services.Configuration.LineHeightImages = lineHeightImages;
+            Services.Configuration.Save();
+        }
+
         var languages = new[] {
             Language.English,
             Language.Japanese,
