@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Alpha.Proto;
 using Dalamud.Game;
 using Dalamud.Logging;
+using Dalamud.Plugin.Services;
 using Google.Protobuf;
 using WebSocketSharp;
 using WebSocketSharp.Server;
@@ -50,7 +51,7 @@ public class Server : IDisposable {
             }
         }
 
-        public void Update(Framework framework) {
+        public void Update(IFramework framework) {
             // reset state on disconnect
             if (this.State != WebSocketState.Open) {
                 this._updates.Clear();

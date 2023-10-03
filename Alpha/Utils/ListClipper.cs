@@ -6,30 +6,30 @@ namespace Alpha.Utils;
 // Copied from https://github.com/UnknownX7/Hypostasis/blob/master/ImGui/ListClipper.cs
 // (with permission - thank you UnknownX!)
 public unsafe class ListClipper : IEnumerable<(int, int)> {
-    private ImGuiListClipperPtr _clipper;
-    private readonly int _rows;
-    private readonly int _columns;
-    private readonly bool _twoDimensional;
-    private readonly int _itemRemainder;
+    private ImGuiListClipperPtr clipper;
+    private readonly int rows;
+    private readonly int columns;
+    private readonly bool twoDimensional;
+    private readonly int itemRemainder;
 
     public int FirstRow { get; private set; } = -1;
     public int LastRow => this.CurrentRow;
     public int CurrentRow { get; private set; }
     public bool IsStepped => this.CurrentRow == this.DisplayStart;
-    public int DisplayStart => this._clipper.DisplayStart;
-    public int DisplayEnd => this._clipper.DisplayEnd;
-    public float ItemsHeight => this._clipper.ItemsHeight;
+    public int DisplayStart => this.clipper.DisplayStart;
+    public int DisplayEnd => this.clipper.DisplayEnd;
+    public float ItemsHeight => this.clipper.ItemsHeight;
 
     public IEnumerable<int> Rows {
         get {
-            while (this._clipper.Step()) {
-                if (this._clipper.ItemsHeight > 0 && this.FirstRow < 0) {
-                    this.FirstRow = (int)(ImGui.GetScrollY() / this._clipper.ItemsHeight);
+            while (this.clipper.Step()) {
+                if (this.clipper.ItemsHeight > 0 && this.FirstRow < 0) {
+                    this.FirstRow = (int) (ImGui.GetScrollY() / this.clipper.ItemsHeight);
                 }
 
-                for (var i = this._clipper.DisplayStart; i < this._clipper.DisplayEnd; i++) {
+                for (var i = this.clipper.DisplayStart; i < this.clipper.DisplayEnd; i++) {
                     this.CurrentRow = i;
-                    yield return this._twoDimensional ? i : i * this._columns;
+                    yield return this.twoDimensional ? i : i * this.columns;
                 }
             }
         }
@@ -37,11 +37,11 @@ public unsafe class ListClipper : IEnumerable<(int, int)> {
 
     public IEnumerable<int> Columns {
         get {
-            var cols = this._itemRemainder == 0
-                       || this._rows != this.DisplayEnd
+            var cols = this.itemRemainder == 0
+                       || this.rows != this.DisplayEnd
                        || this.CurrentRow != this.DisplayEnd - 1
-                ? this._columns
-                : this._itemRemainder;
+                           ? this.columns
+                           : this.itemRemainder;
 
             for (var j = 0; j < cols; j++)
                 yield return j;
@@ -49,17 +49,17 @@ public unsafe class ListClipper : IEnumerable<(int, int)> {
     }
 
     public ListClipper(int items, int cols = 1, bool twoD = false, float itemHeight = 0) {
-        this._twoDimensional = twoD;
-        this._columns = cols;
-        this._rows = this._twoDimensional ? items : (int)MathF.Ceiling((float)items / this._columns);
-        this._itemRemainder = !this._twoDimensional ? items % this._columns : 0;
-        this._clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
-        this._clipper.Begin(this._rows, itemHeight);
+        this.twoDimensional = twoD;
+        this.columns = cols;
+        this.rows = this.twoDimensional ? items : (int) MathF.Ceiling((float) items / this.columns);
+        this.itemRemainder = !this.twoDimensional ? items % this.columns : 0;
+        this.clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
+        this.clipper.Begin(this.rows, itemHeight);
     }
 
     public void End() {
-        this._clipper.End();
-        this._clipper.Destroy();
+        this.clipper.End();
+        this.clipper.Destroy();
     }
 
     public IEnumerator<(int, int)> GetEnumerator() =>
