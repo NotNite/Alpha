@@ -4,7 +4,7 @@
 { fetchNuGet }: [
   (fetchNuGet { pname = "Google.Protobuf"; version = "3.22.3"; sha256 = "0zig2w4yzxfr4gvjjj617cxbq8g705bsci6mmwcm4pn17sd8pbm1"; })
   (fetchNuGet { pname = "Grpc.Tools"; version = "2.54.0"; sha256 = "0y3v8diyar2pmrh1bi0rzwahirvr7bpgjc3zc1mrqa239531c3lb"; })
-  (fetchNuGet { pname = "ImGui.NET"; version = "1.89.4"; sha256 = "0mclifyrnw3l2r1hhklra4yml0g1rbq4wi11zdpad7smdgi733gs"; })
+  (fetchNuGet { pname = "ImGui.NET"; version = "1.89.7.1"; sha256 = "0p1wcf8v04l3x4d9mrwazy3gjp64xmapz1d8issmkappdgkxzwn2"; })
   (fetchNuGet { pname = "Lumina"; version = "3.10.2"; sha256 = "0wf9pn01lqy1ifpp9v8kgbvik0fbdbq1ywglhdil6gjsa53dav8d"; })
   (fetchNuGet { pname = "Lumina.Excel"; version = "6.3.2"; sha256 = "0wmxwxxagqkww2fgci6yfqa1y1ggz52xv8drkfjmvv0kvn2h119g"; })
   (fetchNuGet { pname = "Microsoft.CodeAnalysis.Analyzers"; version = "3.3.4"; sha256 = "0wd6v57p53ahz5z9zg4iyzmy3src7rlsncyqpcag02jjj1yx6g58"; })
