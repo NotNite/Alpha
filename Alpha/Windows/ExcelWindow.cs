@@ -253,6 +253,14 @@ public class ExcelWindow : Window {
             var str = row.RowId.ToString();
             if (row.SubRowId != 0) str += $".{row.SubRowId}";
             ImGui.TextUnformatted(str);
+            if (ImGui.BeginPopupContextItem($"##ExcelModule_Row_{rowId}")) {
+                if (ImGui.Selectable("Copy row ID")) {
+                    ImGui.SetClipboardText(str);
+                }
+
+                ImGui.EndPopup();
+            }
+            
             ImGui.TableNextColumn();
 
             for (var col = 0; col < colCount; col++) {
