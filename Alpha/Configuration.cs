@@ -19,7 +19,8 @@ public class Configuration {
     public bool LineHeightImages { get; set; } = false;
     public bool AlwaysShowOffsets { get; set; } = false;
     public bool SortByOffsets { get; set; } = false;
-
+    public bool HighlightLinks { get; set; } = true;
+    
     public int WindowX { get; set; } = 100;
     public int WindowY { get; set; } = 100;
     public int WindowWidth { get; set; } = 1280;

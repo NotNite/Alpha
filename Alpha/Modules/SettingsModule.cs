@@ -20,16 +20,22 @@ public class SettingsModule : SimpleModule {
             Services.Configuration.LineHeightImages = lineHeightImages;
             Services.Configuration.Save();
         }
-        
+
         var alwaysShowOffsets = Services.Configuration.AlwaysShowOffsets;
         if (ImGui.Checkbox("Always show offsets in Excel", ref alwaysShowOffsets)) {
             Services.Configuration.AlwaysShowOffsets = alwaysShowOffsets;
             Services.Configuration.Save();
         }
-        
+
         var sortByOffsets = Services.Configuration.SortByOffsets;
         if (ImGui.Checkbox("Sort by offsets in Excel", ref sortByOffsets)) {
             Services.Configuration.SortByOffsets = sortByOffsets;
+            Services.Configuration.Save();
+        }
+
+        var highlightLinks = Services.Configuration.HighlightLinks;
+        if (ImGui.Checkbox("Highlight links in Excel", ref highlightLinks)) {
+            Services.Configuration.HighlightLinks = highlightLinks;
             Services.Configuration.Save();
         }
 

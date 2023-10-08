@@ -30,6 +30,9 @@ public class ExcelWindow : Window {
     private CancellationTokenSource? sidebarToken;
     private string? scriptError;
 
+    private (string, int?)? queuedOpen;
+
+    private int? highlightRow;
     private int? tempScroll;
     private int paintTicksLeft = -1;
     private float? itemHeight = 0;
@@ -47,6 +50,14 @@ public class ExcelWindow : Window {
     }
 
     public void OpenSheet(string sheetName, int? scrollTo = null) {
+        this.queuedOpen = (sheetName, scrollTo);
+    }
+
+    private void ProcessQueuedOpen() {
+        var (sheetName, scrollTo) = this.queuedOpen!.Value;
+        this.queuedOpen = null;
+
+        this.highlightRow = scrollTo;
         this.tempScroll = scrollTo;
 
         var sheet = this.module.GetSheet(sheetName);
@@ -55,7 +66,7 @@ public class ExcelWindow : Window {
             return;
         }
 
-        Log.Debug("Opening sheet: {SheetName}", sheetName);
+        Log.Debug("Opening sheet: {SheetName} {ScrollTo}", sheetName, scrollTo);
         this.selectedSheet = sheet;
         this.filteredRows = null;
         this.itemHeight = 0;
@@ -66,6 +77,8 @@ public class ExcelWindow : Window {
 
     // TODO deduplicate this code from fs module
     protected override void Draw() {
+        if (this.queuedOpen is not null) this.ProcessQueuedOpen();
+
         this.DrawSidebar();
 
         ImGui.BeginGroup();
@@ -256,6 +269,7 @@ public class ExcelWindow : Window {
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
         var newHeight = 0f;
+        var shouldPopColor = false;
         foreach (var i in clipper.Rows) {
             var rowId = i;
             if (this.filteredRows is not null) {
@@ -268,8 +282,20 @@ public class ExcelWindow : Window {
                 continue;
             }
 
+
+
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
+
+            var highlighted = this.highlightRow == rowId && Services.Configuration.HighlightLinks;
+            if (highlighted) {
+                var newBg = new Vector4(1f, 0.5f, 0f, 0.5f);
+                ImGui.PushStyleColor(ImGuiCol.TableRowBg, newBg);
+                ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, newBg);
+            }
+
+            if (shouldPopColor) ImGui.PopStyleColor(2);
+            if (highlighted) shouldPopColor = true;
 
             var str = row.RowId.ToString();
             if (row.SubRowId != 0) str += $".{row.SubRowId}";
