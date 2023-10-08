@@ -16,8 +16,14 @@ public class SettingsModule : SimpleModule {
         }
 
         var lineHeightImages = Services.Configuration.LineHeightImages;
-        if (ImGui.Checkbox("Lock images to line height", ref lineHeightImages)) {
+        if (ImGui.Checkbox("Lock images to line height in Excel", ref lineHeightImages)) {
             Services.Configuration.LineHeightImages = lineHeightImages;
+            Services.Configuration.Save();
+        }
+        
+        var alwaysShowOffsets = Services.Configuration.AlwaysShowOffsets;
+        if (ImGui.Checkbox("Always show offsets in Excel", ref alwaysShowOffsets)) {
+            Services.Configuration.AlwaysShowOffsets = alwaysShowOffsets;
             Services.Configuration.Save();
         }
 

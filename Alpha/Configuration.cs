@@ -17,6 +17,7 @@ public class Configuration {
 
     public bool PreferHr1 { get; set; } = true;
     public bool LineHeightImages { get; set; } = false;
+    public bool AlwaysShowOffsets { get; set; } = false;
 
     public int WindowX { get; set; } = 100;
     public int WindowY { get; set; } = 100;

@@ -216,16 +216,18 @@ public class ExcelWindow : Window {
         for (var i = 0; i < colCount; i++) {
             var colName = sheetDefinition?.GetNameForColumn(i) ?? i.ToString();
 
+            var col = this.selectedSheet.Columns[i];
+            var offset = col.Offset;
+            var offsetStr = $"Offset: {offset} (0x{offset:X})\nIndex: {i}\nData type: {col.Type.ToString()}";
+
+            if (Services.Configuration.AlwaysShowOffsets) colName += "\n" + offsetStr;
+
             ImGui.TableSetColumnIndex(i + 1);
             ImGui.TableHeader(colName);
 
-            if (ImGui.IsItemHovered()) {
-                var col = this.selectedSheet.Columns[i];
-                var offset = col.Offset;
-                var str = $"Offset: {offset} (0x{offset:X})\nIndex: {i}\nData type: {col.Type.ToString()}";
-
+            if (ImGui.IsItemHovered() && !Services.Configuration.AlwaysShowOffsets) {
                 ImGui.BeginTooltip();
-                ImGui.TextUnformatted(str);
+                ImGui.TextUnformatted(offsetStr);
                 ImGui.EndTooltip();
             }
         }
@@ -260,7 +262,7 @@ public class ExcelWindow : Window {
 
                 ImGui.EndPopup();
             }
-            
+
             ImGui.TableNextColumn();
 
             for (var col = 0; col < colCount; col++) {
