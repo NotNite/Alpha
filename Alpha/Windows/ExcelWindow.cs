@@ -282,8 +282,6 @@ public class ExcelWindow : Window {
                 continue;
             }
 
-
-
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
 
@@ -329,8 +327,9 @@ public class ExcelWindow : Window {
 
                 var next = ImGui.GetCursorPosY();
                 if (this.itemHeight is not null) {
-                    var height = next - prev + ImGui.GetStyle().ItemSpacing.Y;
-                    var needed = this.itemHeight.Value - height;
+                    var spacing = ImGui.GetStyle().ItemSpacing.Y;
+                    var height = next - prev;
+                    var needed = this.itemHeight.Value - (height + spacing);
                     if (needed > 0) {
                         ImGui.Dummy(new Vector2(0, needed));
                     }
