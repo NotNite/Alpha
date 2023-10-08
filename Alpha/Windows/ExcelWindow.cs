@@ -213,12 +213,31 @@ public class ExcelWindow : Window {
         ImGui.TableSetColumnIndex(0);
         ImGui.TableHeader("Row");
 
-        for (var i = 0; i < colCount; i++) {
-            var colName = sheetDefinition?.GetNameForColumn(i) ?? i.ToString();
+        var colMappings = new int[colCount];
+        if (Services.Configuration.SortByOffsets) {
+            var colOffsets = new Dictionary<int, uint>();
 
-            var col = this.selectedSheet.Columns[i];
+            for (var i = 0; i < colCount; i++) {
+                var col = this.selectedSheet.Columns[i];
+                colOffsets[i] = col.Offset;
+            }
+
+            colOffsets = colOffsets
+                .OrderBy(x => x.Value)
+                .ToDictionary(x => x.Key, x => x.Value);
+
+            for (var i = 0; i < colCount; i++) colMappings[i] = colOffsets.ElementAt(i).Key;
+        } else {
+            for (var i = 0; i < colCount; i++) colMappings[i] = i;
+        }
+
+        for (var i = 0; i < colCount; i++) {
+            var colId = colMappings[i];
+            var colName = sheetDefinition?.GetNameForColumn(colId) ?? colId.ToString();
+
+            var col = this.selectedSheet.Columns[colId];
             var offset = col.Offset;
-            var offsetStr = $"Offset: {offset} (0x{offset:X})\nIndex: {i}\nData type: {col.Type.ToString()}";
+            var offsetStr = $"Offset: {offset} (0x{offset:X})\nIndex: {colId}\nData type: {col.Type.ToString()}";
 
             if (Services.Configuration.AlwaysShowOffsets) colName += "\n" + offsetStr;
 
@@ -266,17 +285,17 @@ public class ExcelWindow : Window {
             ImGui.TableNextColumn();
 
             for (var col = 0; col < colCount; col++) {
-                var obj = row.ReadColumnRaw(col);
+                var obj = row.ReadColumnRaw(colMappings[col]);
                 var prev = ImGui.GetCursorPosY();
 
                 if (obj != null) {
-                    var converter = sheetDefinition?.GetConverterForColumn(col);
+                    var converter = sheetDefinition?.GetConverterForColumn(colMappings[col]);
 
                     this.module.DrawEntry(
                         this,
                         this.selectedSheet,
                         rowId,
-                        col,
+                        colMappings[col],
                         obj,
                         converter
                     );

@@ -26,6 +26,12 @@ public class SettingsModule : SimpleModule {
             Services.Configuration.AlwaysShowOffsets = alwaysShowOffsets;
             Services.Configuration.Save();
         }
+        
+        var sortByOffsets = Services.Configuration.SortByOffsets;
+        if (ImGui.Checkbox("Sort by offsets in Excel", ref sortByOffsets)) {
+            Services.Configuration.SortByOffsets = sortByOffsets;
+            Services.Configuration.Save();
+        }
 
         var languages = new[] {
             Language.English,
