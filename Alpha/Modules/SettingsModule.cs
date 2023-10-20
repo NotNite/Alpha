@@ -85,6 +85,12 @@ public class SettingsModule : SimpleModule {
             Services.Configuration.Save();
         }
 
+        var font = Services.Configuration.UseBuiltInFont;
+        if (ImGui.Checkbox("Use ImGui's built in font", ref font)) {
+            Services.Configuration.UseBuiltInFont = font;
+            Services.Configuration.Save();
+        }
+
         var hexEditorPath = Services.Configuration.HexEditorPath;
         if (ImGui.InputText("Hex editor path", ref hexEditorPath, 1024)) {
             Services.Configuration.HexEditorPath = hexEditorPath;

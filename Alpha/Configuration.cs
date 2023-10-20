@@ -27,6 +27,7 @@ public class Configuration {
     public int WindowHeight { get; set; } = 720;
     public float DisplayScale { get; set; } = 1.0f;
     public float FpsLimit { get; set; } = 60.0f;
+    public bool UseBuiltInFont { get; set; } = true;
 
     public string HexEditorPath { get; set; } = string.Empty;
 

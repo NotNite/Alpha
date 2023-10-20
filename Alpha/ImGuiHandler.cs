@@ -52,16 +52,26 @@ public class ImGuiHandler : IDisposable {
         io.DisplayFramebufferScale = new Vector2(Services.Configuration.DisplayScale);
 
         unsafe {
-            io.Fonts.AddFontDefault();
+            if (Services.Configuration.UseBuiltInFont) {
+                io.Fonts.AddFontDefault();
+            } else {
+                var bytes = this.GetEmbeddedResourceBytes("NotoSans-Medium.ttf");
+                var ptr = Marshal.AllocHGlobal(bytes.Length);
+                Marshal.Copy(bytes, 0, ptr, bytes.Length);
 
-            var bytes = this.GetEmbeddedResourceBytes("NotoSansCJKjp-Medium.otf");
-            var ptr = Marshal.AllocHGlobal(bytes.Length);
-            Marshal.Copy(bytes, 0, ptr, bytes.Length);
+                var cfg = ImGuiNative.ImFontConfig_ImFontConfig();
+                var glyphRanges = io.Fonts.GetGlyphRangesDefault();
+                var font = io.Fonts.AddFontFromMemoryTTF(ptr, bytes.Length, 16, cfg, glyphRanges);
+            }
 
-            var cfg = ImGuiNative.ImFontConfig_ImFontConfig();
-            cfg->MergeMode = 1;
+            var cjkBytes = this.GetEmbeddedResourceBytes("NotoSansCJKjp-Medium.otf");
+            var cjkPtr = Marshal.AllocHGlobal(cjkBytes.Length);
+            Marshal.Copy(cjkBytes, 0, cjkPtr, cjkBytes.Length);
+
+            var cjkCfg = ImGuiNative.ImFontConfig_ImFontConfig();
+            cjkCfg->MergeMode = 1;
             var jpGlyphRanges = io.Fonts.GetGlyphRangesJapanese();
-            io.Fonts.AddFontFromMemoryTTF(ptr, bytes.Length, 16, cfg, jpGlyphRanges);
+            io.Fonts.AddFontFromMemoryTTF(cjkPtr, cjkBytes.Length, 16, cjkCfg, jpGlyphRanges);
 
             io.Fonts.Build();
             this.RecreateFontDeviceTexture();
@@ -140,19 +150,19 @@ public class ImGuiHandler : IDisposable {
 
         this._vertexShader = factory.CreateShader(
             new ShaderDescription(ShaderStages.Vertex, vertexShaderBytes,
-                gd.BackendType == GraphicsBackend.Metal ? "VS" : "main")
+                                  gd.BackendType == GraphicsBackend.Metal ? "VS" : "main")
         );
 
         this._fragmentShader = factory.CreateShader(
             new ShaderDescription(ShaderStages.Fragment, fragmentShaderBytes,
-                gd.BackendType == GraphicsBackend.Metal ? "FS" : "main")
+                                  gd.BackendType == GraphicsBackend.Metal ? "FS" : "main")
         );
 
         VertexLayoutDescription[] vertexLayouts = {
             new(
                 new VertexElementDescription("in_position", VertexElementSemantic.Position, VertexElementFormat.Float2),
                 new VertexElementDescription("in_texCoord", VertexElementSemantic.TextureCoordinate,
-                    VertexElementFormat.Float2),
+                                             VertexElementFormat.Float2),
                 new VertexElementDescription("in_color", VertexElementSemantic.Color, VertexElementFormat.Byte4_Norm)
             )
         };
@@ -170,16 +180,16 @@ public class ImGuiHandler : IDisposable {
 
         this._textureLayout = factory.CreateResourceLayout(
             new ResourceLayoutDescription(new ResourceLayoutElementDescription(
-                "MainTexture", ResourceKind.TextureReadOnly, ShaderStages.Fragment
-            )));
+                                              "MainTexture", ResourceKind.TextureReadOnly, ShaderStages.Fragment
+                                          )));
 
         GraphicsPipelineDescription pd = new GraphicsPipelineDescription(
             BlendStateDescription.SingleAlphaBlend,
             new DepthStencilStateDescription(false, false, ComparisonKind.Always),
             new RasterizerStateDescription(FaceCullMode.None, PolygonFillMode.Solid, FrontFace.Clockwise, false, true),
             PrimitiveTopology.TriangleList,
-            new ShaderSetDescription(vertexLayouts, new[] { this._vertexShader, this._fragmentShader }),
-            new[] { this._layout, this._textureLayout },
+            new ShaderSetDescription(vertexLayouts, new[] {this._vertexShader, this._fragmentShader}),
+            new[] {this._layout, this._textureLayout},
             outputDescription,
             ResourceBindingModel.Default
         );
@@ -187,7 +197,7 @@ public class ImGuiHandler : IDisposable {
 
         this._mainResourceSet =
             factory.CreateResourceSet(new ResourceSetDescription(this._layout, this._projMatrixBuffer,
-                gd.PointSampler));
+                                                                 gd.PointSampler));
 
         this._fontTextureResourceSet =
             factory.CreateResourceSet(new ResourceSetDescription(this._textureLayout, this._fontTextureView));
@@ -209,7 +219,7 @@ public class ImGuiHandler : IDisposable {
 
         var readBytes = 0;
         while (readBytes < s.Length) {
-            readBytes += s.Read(ret, readBytes, (int)s.Length - readBytes);
+            readBytes += s.Read(ret, readBytes, (int) s.Length - readBytes);
         }
 
         return ret;
@@ -223,24 +233,24 @@ public class ImGuiHandler : IDisposable {
         io.Fonts.SetTexID(FontAtlasId);
 
         this._fontTexture = gd.ResourceFactory.CreateTexture(TextureDescription.Texture2D(
-            (uint)width,
-            (uint)height,
-            1,
-            1,
-            PixelFormat.R8_G8_B8_A8_UNorm,
-            TextureUsage.Sampled
-        ));
+                                                                 (uint) width,
+                                                                 (uint) height,
+                                                                 1,
+                                                                 1,
+                                                                 PixelFormat.R8_G8_B8_A8_UNorm,
+                                                                 TextureUsage.Sampled
+                                                             ));
         this._fontTexture.Name = "Alpha Font Texture";
 
         gd.UpdateTexture(
             this._fontTexture,
             pixels,
-            (uint)(bytesPerPixel * width * height),
+            (uint) (bytesPerPixel * width * height),
             0,
             0,
             0,
-            (uint)width,
-            (uint)height,
+            (uint) width,
+            (uint) height,
             1,
             0,
             0
@@ -290,7 +300,7 @@ public class ImGuiHandler : IDisposable {
         if (totalVbSize > this._vertexBuffer.SizeInBytes) {
             gd.DisposeWhenIdle(this._vertexBuffer);
             this._vertexBuffer = gd.ResourceFactory.CreateBuffer(
-                new BufferDescription((uint)(totalVbSize * 1.5f), BufferUsage.VertexBuffer | BufferUsage.Dynamic)
+                new BufferDescription((uint) (totalVbSize * 1.5f), BufferUsage.VertexBuffer | BufferUsage.Dynamic)
             );
         }
 
@@ -298,7 +308,7 @@ public class ImGuiHandler : IDisposable {
         if (totalIbSize > this._indexBuffer.SizeInBytes) {
             gd.DisposeWhenIdle(this._indexBuffer);
             this._indexBuffer = gd.ResourceFactory.CreateBuffer(
-                new BufferDescription((uint)(totalIbSize * 1.5f), BufferUsage.IndexBuffer | BufferUsage.Dynamic)
+                new BufferDescription((uint) (totalIbSize * 1.5f), BufferUsage.IndexBuffer | BufferUsage.Dynamic)
             );
         }
 
@@ -307,16 +317,16 @@ public class ImGuiHandler : IDisposable {
 
             cl.UpdateBuffer(
                 this._vertexBuffer,
-                (uint)(vertexOffsetInVertices * Unsafe.SizeOf<ImDrawVert>()),
+                (uint) (vertexOffsetInVertices * Unsafe.SizeOf<ImDrawVert>()),
                 cmdList.VtxBuffer.Data,
-                (uint)(cmdList.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>())
+                (uint) (cmdList.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>())
             );
 
             cl.UpdateBuffer(
                 this._indexBuffer,
-                (uint)(indexOffsetInElements * sizeof(ushort)),
+                (uint) (indexOffsetInElements * sizeof(ushort)),
                 cmdList.IdxBuffer.Data,
-                (uint)(cmdList.IdxBuffer.Size * sizeof(ushort))
+                (uint) (cmdList.IdxBuffer.Size * sizeof(ushort))
             );
 
             vertexOffsetInVertices += cmdList.VtxBuffer.Size;
@@ -361,17 +371,17 @@ public class ImGuiHandler : IDisposable {
 
                 cl.SetScissorRect(
                     0,
-                    (uint)pcmd.ClipRect.X,
-                    (uint)pcmd.ClipRect.Y,
-                    (uint)(pcmd.ClipRect.Z - pcmd.ClipRect.X),
-                    (uint)(pcmd.ClipRect.W - pcmd.ClipRect.Y)
+                    (uint) pcmd.ClipRect.X,
+                    (uint) pcmd.ClipRect.Y,
+                    (uint) (pcmd.ClipRect.Z - pcmd.ClipRect.X),
+                    (uint) (pcmd.ClipRect.W - pcmd.ClipRect.Y)
                 );
 
                 cl.DrawIndexed(
                     pcmd.ElemCount,
                     1,
-                    (uint)(pcmd.IdxOffset + idxOffset),
-                    (int)(pcmd.VtxOffset + vtxOffset),
+                    (uint) (pcmd.IdxOffset + idxOffset),
+                    (int) (pcmd.VtxOffset + vtxOffset),
                     0
                 );
             }
@@ -383,7 +393,7 @@ public class ImGuiHandler : IDisposable {
 
     private bool TryMapKey(Key key, out ImGuiKey result) {
         ImGuiKey KeyToImGuiKeyShortcut(Key keyToConvert, Key startKey1, ImGuiKey startKey2) {
-            int changeFromStart1 = (int)keyToConvert - (int)startKey1;
+            int changeFromStart1 = (int) keyToConvert - (int) startKey1;
             return startKey2 + changeFromStart1;
         }
 
