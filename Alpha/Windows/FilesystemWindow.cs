@@ -63,11 +63,12 @@ public class FilesystemWindow : Window {
         if (this._module.ResLogger.CurrentPathCache.Count > 0) {
             foreach (var rootCategory in this._rootCategories) {
                 if (ImGui.TreeNode(rootCategory + "/")) {
+                    this.DirectoryContextMenu(rootCategory);
                     this.RecursiveTree(rootCategory);
                     ImGui.TreePop();
+                } else {
+                    this.DirectoryContextMenu(rootCategory);
                 }
-
-                this.DirectoryContextMenu(rootCategory);
             }
         } else {
             ImGui.Text("No ResLogger data :(");
@@ -185,11 +186,12 @@ public class FilesystemWindow : Window {
             var path = folder + "/" + item[..^1];
             if (item.EndsWith("/")) {
                 if (ImGui.TreeNode(item)) {
+                    this.DirectoryContextMenu(path);
                     this.RecursiveTree(path);
                     ImGui.TreePop();
+                } else {
+                    this.DirectoryContextMenu(path);
                 }
-
-                this.DirectoryContextMenu(path);
             } else {
                 if (ImGui.Selectable(item)) {
                     this.OpenFile(folder + "/" + item);

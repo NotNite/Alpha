@@ -102,17 +102,12 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
         switch (converter) {
             // Was originally 'link when link.Target != null', Rider wants me to turn it into this monstrous thing
             case LinkConverterDefinition {Target: not null} link: {
-                var targetRow = 0;
-                try {
-                    targetRow = Convert.ToInt32(data);
-                } catch {
-                    // ignored
-                }
+                var targetRow = data is uint @uint ? @uint : 0;
 
                 if (insideLink && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
                     // Draw what the link points to
                     var targetSheet = this.GetSheet(link.Target);
-                    var targetRowObj = targetSheet?.GetRow((uint) targetRow);
+                    var targetRowObj = targetSheet?.GetRow(targetRow);
                     var sheetDef = this.SheetDefinitions.TryGetValue(link.Target, out var definition)
                                        ? definition
                                        : null;
@@ -127,7 +122,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                             this.DrawEntry(
                                 sourceWindow,
                                 targetSheet!,
-                                targetRow,
+                                (int) targetRow,
                                 targetCol,
                                 targetData,
                                 sheetDef.GetConverterForColumn(targetCol),
@@ -138,19 +133,14 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
                     }
                 }
 
-                this.DrawLink(sourceWindow, link.Target, targetRow, row, col);
+                this.DrawLink(sourceWindow, link.Target, (int) targetRow, row, col);
                 break;
             }
 
             case IconConverterDefinition: {
-                var iconId = 0u;
-                try {
-                    iconId = Convert.ToUInt32(data);
-                } catch {
-                    // ignored
-                }
-
+                var iconId = data is uint @uint ? @uint : 0;
                 var icon = Services.ImageHandler.GetIcon(iconId);
+
                 if (icon is not null) {
                     var path = icon.FilePath;
                     var handle = Services.ImageHandler.DisplayTex(icon);
@@ -211,7 +201,7 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
 
             case TomestoneConverterDefinition: {
                 // FIXME this allocates memory like a motherfucker, cache this
-                var dataInt = Convert.ToUInt32(data);
+                var dataInt = data is uint @uint ? @uint : 0;
                 var tomestone = dataInt > 0
                                     ? Services.GameData.GetExcelSheet<TomestonesItem>()!
                                         .FirstOrDefault(x => x.Tomestones.Row == dataInt)
@@ -239,18 +229,12 @@ public class ExcelModule : WindowedModule<ExcelWindow> {
             }
 
             case ComplexLinkConverterDefinition complex: {
-                var targetRow = 0;
-                try {
-                    targetRow = Convert.ToInt32(data);
-                } catch {
-                    // ignored
-                }
-
+                var targetRow = data is uint @uint ? @uint : 0;
                 var resolvedLinks = complex.ResolveComplexLink(
                     this,
                     sheet,
                     row,
-                    targetRow
+                    (int) targetRow
                 );
 
                 foreach (var link in resolvedLinks) {
