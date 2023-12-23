@@ -23,6 +23,8 @@ Alpha does not currently have a stable release, and does not operate under versi
 - Nix users can use the provided flake to build Alpha from source (Omega is not currently supported through the flake).
   - This flake is not actively monitored and may fail to build. Please open an issue if you encounter troubles!
 
+You will need the .NET 8 Runtime. Windows users can find it [here](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer).
+
 ## Omega
 
 Omega is a Dalamud plugin that communicates with Alpha to provide various tools like memory editing. It uses Protobuf over a WebSocket connection (Omega is the server, Alpha is the client).
