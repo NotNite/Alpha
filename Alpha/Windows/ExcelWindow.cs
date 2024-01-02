@@ -503,12 +503,11 @@ public class ExcelWindow : Window {
 
                     var row = this.GetRow(this.selectedSheet, this.rowMapping, i);
                     if (row is null) continue;
-                    var i1 = i;
 
                     async void SimpleEval() {
                         try {
                             var res = await expr.RunAsync(cancellationToken: ct.Token);
-                            if (res.ReturnValue) this.filteredRows?.Add(i1);
+                            if (res.ReturnValue) this.filteredRows?.Add(i);
                         } catch (Exception e) {
                             this.scriptError = e.Message;
                         }
@@ -537,7 +536,7 @@ public class ExcelWindow : Window {
                         } else {
                             try {
                                 var res = await expr.RunAsync(globals, ct.Token);
-                                if (res.ReturnValue) this.filteredRows?.Add(i1);
+                                if (res.ReturnValue) this.filteredRows?.Add(i);
                             } catch (Exception e) {
                                 this.scriptError = e.Message;
                             }
