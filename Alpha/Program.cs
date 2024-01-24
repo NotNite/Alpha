@@ -46,7 +46,7 @@ public class Program {
         }
 
         Services.InitPreSetup();
-        if (Services.Configuration.GamePath is null) {
+        if (!GamePathIsValid(Services.Configuration.GamePath)) {
             _state = ProgramState.Setup;
         } else {
             Services.InitPostSetup();
@@ -69,7 +69,7 @@ public class Program {
         }
 
         // ReSharper disable once AccessToDisposedClosure
-        Window.Resized += () => { GraphicsDevice.MainSwapchain.Resize((uint)Window.Width, (uint)Window.Height); };
+        Window.Resized += () => { GraphicsDevice.MainSwapchain.Resize((uint) Window.Width, (uint) Window.Height); };
 
         var commandList = GraphicsDevice.ResourceFactory.CreateCommandList();
         ImGuiHandler = new ImGuiHandler(Window, GraphicsDevice);
@@ -80,7 +80,7 @@ public class Program {
         var imageStopwatch = Stopwatch.StartNew();
 
         while (Window.Exists) {
-            var deltaTime = stopwatch.ElapsedTicks / (float)Stopwatch.Frequency;
+            var deltaTime = stopwatch.ElapsedTicks / (float) Stopwatch.Frequency;
             if (deltaTime < 1f / FpsLimit) continue; // shitty FPS limiter
             stopwatch.Restart();
 
@@ -171,10 +171,9 @@ public class Program {
 
             ImGui.SetCursorPosY(cra.Y - 20);
             if (ImGui.Button("Select game path")) {
-                // open a file dialog
                 var folder = Dialog.FolderPicker();
-                if (folder?.Path is not null) {
-                    Services.Configuration.GamePath = folder.Path;
+                if (GamePathIsValid(folder?.Path)) {
+                    Services.Configuration.GamePath = folder!.Path;
                     Services.Configuration.Save();
                     Services.InitPostSetup();
                     _state = ProgramState.Main;
@@ -246,5 +245,18 @@ public class Program {
 
             ImGui.EndMainMenuBar();
         }
+    }
+
+    private static bool GamePathIsValid(string? path) {
+        if (path is null) return false;
+        if (!Directory.Exists(path)) return false;
+
+        var dirs = Directory.GetDirectories(path);
+        if (
+            !dirs.Any(f => f.EndsWith("game"))
+            || !dirs.Any(f => f.EndsWith("boot"))
+        ) return false;
+
+        return true;
     }
 }

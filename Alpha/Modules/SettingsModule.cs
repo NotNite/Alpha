@@ -9,6 +9,12 @@ public class SettingsModule : SimpleModule {
     public SettingsModule() : base("Settings") { }
 
     internal override void SimpleDraw() {
+        var gamePath = Services.Configuration.GamePath;
+        if (ImGui.InputText("Game path", ref gamePath, 1024)) {
+            Services.Configuration.GamePath = gamePath;
+            Services.Configuration.Save();
+        }
+
         var preferHr1 = Services.Configuration.PreferHr1;
         if (ImGui.Checkbox("Prefer high quality textures", ref preferHr1)) {
             Services.Configuration.PreferHr1 = preferHr1;
