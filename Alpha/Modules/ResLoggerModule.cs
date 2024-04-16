@@ -14,6 +14,13 @@ public class ResLoggerModule : SimpleModule {
     public ResLoggerModule() : base("ResLogger", "Data") {
         if (Services.Configuration.AutoPaths) this.FetchPaths();
         if (Services.Configuration.AutoCurrentPaths) this.FetchCurrentPaths();
+        var pathsDir = Path.Combine(Program.DataDirectory, "pathlists");
+        if (Directory.Exists(pathsDir)) {
+            foreach (var file in Directory.EnumerateFiles(pathsDir)) {
+                var lines = File.ReadAllLines(file);
+                this.CurrentPathCache.AddRange(lines);
+            }
+        }
     }
 
     internal override void SimpleDraw() {
