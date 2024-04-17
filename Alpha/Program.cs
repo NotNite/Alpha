@@ -252,11 +252,6 @@ public class Program {
         if (!Directory.Exists(path)) return false;
 
         var dirs = Directory.GetDirectories(path);
-        if (
-            !dirs.Any(f => f.EndsWith("game"))
-            || !dirs.Any(f => f.EndsWith("boot"))
-        ) return false;
-
-        return true;
+        return dirs.Any(f => f.EndsWith("game"));
     }
 }
