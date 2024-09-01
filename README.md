@@ -22,6 +22,7 @@ Alpha does not currently have a stable release, and does not operate under versi
 - Users familiar with source control may opt for compiling from source.
 - Nix users can use the provided flake to build Alpha from source (Omega is not currently supported through the flake).
   - This flake is not actively monitored and may fail to build. Please open an issue if you encounter troubles!
+- A prerelease is available on the Releases tab.
 
 You will need the .NET 8 Runtime. Windows users can find it [here](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer).
 
