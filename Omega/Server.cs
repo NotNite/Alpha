@@ -110,7 +110,6 @@ public class Server : IDisposable {
 
             switch (msg.MessageCase) {
                 case C2SMessage.MessageOneofCase.Ping: {
-                    PluginLog.Debug("Got ping, sending pong");
                     var msg2 = new S2CMessage {
                         Pong = new Pong {
                             GameVersion = File.ReadAllText("ffxivgame.ver"),
@@ -155,7 +154,6 @@ public class Server : IDisposable {
                     foreach (var payload in payloads) {
                         var addr = (nint)payload.Address;
                         var data = payload.Data.ToByteArray()[0];
-                        PluginLog.Verbose("Writing {Data:X} to {Address:X}", data, payload.Address);
 
                         VirtualProtect(addr, 1, 0x40, out var oldProtect);
                         unsafe {
@@ -187,7 +185,6 @@ public class Server : IDisposable {
                 }
 
                 default:
-                    PluginLog.Warning("Unknown message type: {Message}", msg.MessageCase);
                     break;
             }
         }

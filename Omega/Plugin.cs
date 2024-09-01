@@ -16,7 +16,7 @@ public class Plugin : IDalamudPlugin {
 
     private static Server _server = null!;
 
-    public Plugin(DalamudPluginInterface pluginInterface) {
+    public Plugin(IDalamudPluginInterface pluginInterface) {
         pluginInterface.Create<Services>();
 
         WindowSystem = new("Omega");
