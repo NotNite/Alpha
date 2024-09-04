@@ -15,6 +15,7 @@ public class FilesystemWindow : Window, IDisposable {
     public FileResource? File;
 
     private string filter = string.Empty;
+    private List<string> filteredDirectories = new();
     private float sidebarWidth = 300f;
 
     private readonly GameDataService gameData;
@@ -34,6 +35,8 @@ public class FilesystemWindow : Window, IDisposable {
         this.logger = logger;
 
         this.gameData.OnGameDataChanged += this.GameDataChanged;
+
+        this.InitialSize = new Vector2(800, 600);
     }
 
     public void Dispose() {
@@ -66,8 +69,17 @@ public class FilesystemWindow : Window, IDisposable {
 
     private void DrawSidebar() {
         ImGui.SetNextItemWidth(this.sidebarWidth);
-        if (ImGui.InputText("##FilesystemWindow_Filter", ref this.filter, 1024)) {
-            // TODO: put the filter back
+        if (ImGui.InputText("##FilesystemWindow_Filter", ref this.filter, 1024, ImGuiInputTextFlags.EnterReturnsTrue)) {
+            this.filteredDirectories.Clear();
+            foreach (var files in this.pathService.Files.Values) {
+                foreach (var file in files.Values) {
+                    var path = file.Path ?? Util.PrintFileHash(file.Hash);
+                    if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
+                        var dir = path.AsSpan(0, path.LastIndexOf('/')).ToString();
+                        if (!this.filteredDirectories.Contains(dir)) this.filteredDirectories.Add(dir);
+                    }
+                }
+            }
         }
 
         if (ImGui.BeginChild("##FilesystemWindow_Sidebar", ImGui.GetContentRegionAvail() with {X = this.sidebarWidth},
@@ -137,11 +149,16 @@ public class FilesystemWindow : Window, IDisposable {
                      .OrderBy(x => x.Key.StartsWith('~') ? 1 : 0)
                      .ThenBy(x => x.Key)
                 ) {
-            //if (filterExists && !folder.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
+            if (filterExists && !this.filteredDirectories.Any(x => x.StartsWith(path + "/" + folder))) continue;
 
             if (ImGui.TreeNode(folder + "/")) {
                 if (files != null) {
                     foreach (var file in files) {
+                        if (filterExists) {
+                            var filePath = file.Path ?? Util.PrintFileHash(file.FileHash);
+                            if (!filePath.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
+                        }
+
                         if (ImGui.Selectable(file.Name ?? Util.PrintFileHash(file.FileHash))) {
                             this.Open(file);
                         }
@@ -162,7 +179,11 @@ public class FilesystemWindow : Window, IDisposable {
                      .OrderBy(x => x.Item2.StartsWith('~') ? 1 : 0)
                      .ThenBy(x => x.Item2)
                 ) {
-            if (filterExists && !name.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
+            if (filterExists) {
+                var filePath = file.Path ?? Util.PrintFileHash(file.FileHash);
+                if (!filePath.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
+            }
+
             if (ImGui.Selectable(name)) {
                 this.Open(file);
             }
