@@ -20,7 +20,11 @@ public static class Util {
                 break;
 
             default:
-                Process.Start(url);
+                var psi = new ProcessStartInfo {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
                 break;
         }
     }
