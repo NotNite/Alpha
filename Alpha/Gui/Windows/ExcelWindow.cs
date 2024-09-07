@@ -1,18 +1,21 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using Alpha.Services;
 using Alpha.Services.Excel;
 using Alpha.Services.Excel.Cells;
 using ImGuiNET;
+using Lumina;
 using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
 namespace Alpha.Gui.Windows;
 
 [Window("Excel")]
-public class ExcelWindow : Window, IDisposable  {
+public class ExcelWindow : Window, IDisposable {
     private RawExcelSheet? selectedSheet;
     private Dictionary<string, Dictionary<uint, (uint, uint?)>>
         rowMappings = new(); // Working around a Lumina bug to map index to row
@@ -32,6 +35,10 @@ public class ExcelWindow : Window, IDisposable  {
     private float? itemHeight = 0;
 
     private Dictionary<RawExcelSheet, Dictionary<(int, int), CachedCell>> cellCache = new();
+
+    private CancellationTokenSource? scriptToken;
+    private CancellationTokenSource? sidebarToken;
+    private string? scriptError;
 
     private readonly ExcelService excel;
     private readonly Config config;
@@ -136,10 +143,10 @@ public class ExcelWindow : Window, IDisposable  {
     private void DrawContentFilter(float width) {
         ImGui.SetNextItemWidth(width);
 
-        /*var shouldRed = this.scriptError is not null;
+        var shouldRed = this.scriptError is not null;
         if (shouldRed) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0f, 0f, 1f));
         var shouldOrange = this.scriptToken is not null && !shouldRed;
-        if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0f, 1f));*/
+        if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0f, 1f));
 
         if (ImGui.InputText("##ExcelContentFilter", ref this.contentFilter, 1024,
                 ImGuiInputTextFlags.EnterReturnsTrue)) {
@@ -152,7 +159,7 @@ public class ExcelWindow : Window, IDisposable  {
             this.ResolveContentFilter();
         }
 
-        /*if (shouldRed) {
+        if (shouldRed) {
             ImGui.PopStyleColor();
             if (ImGui.IsItemHovered()) {
                 ImGui.BeginTooltip();
@@ -170,7 +177,7 @@ public class ExcelWindow : Window, IDisposable  {
                     + "To stop the script, empty or right click the input box.");
                 ImGui.EndTooltip();
             }
-        }*/
+        }
     }
 
     public void OpenSheet(string sheetName, int? scrollTo = null) {
@@ -249,6 +256,14 @@ public class ExcelWindow : Window, IDisposable  {
     private void ResolveContentFilter() {
         Log.Debug("Resolving content filter...");
 
+        if (this.scriptToken is not null && !this.scriptToken.IsCancellationRequested) {
+            this.scriptToken.Cancel();
+            this.scriptToken.Dispose();
+            this.scriptToken = null;
+        }
+
+        this.scriptError = null;
+
         if (string.IsNullOrEmpty(this.contentFilter)) {
             this.filteredRows = null;
             return;
@@ -259,7 +274,6 @@ public class ExcelWindow : Window, IDisposable  {
             return;
         }
 
-        // TODO: also probably need to wait for the task
         if (this.filterCts is not null) {
             this.filterCts.Cancel();
             this.filterCts.Dispose();
@@ -267,7 +281,11 @@ public class ExcelWindow : Window, IDisposable  {
         }
 
         this.filterCts = new CancellationTokenSource();
-        this.ContentFilterSimple(this.contentFilter);
+        if (this.contentFilter.StartsWith('$')) {
+            this.ContentFilterScript(this.contentFilter[1..]);
+        } else {
+            this.ContentFilterSimple(this.contentFilter);
+        }
 
         this.itemHeight = 0;
         Log.Debug("Filter resolved!");
@@ -304,6 +322,97 @@ public class ExcelWindow : Window, IDisposable  {
                 }
             }
         }, this.filterCts!.Token);
+    }
+
+    private void ContentFilterScript(string script) {
+        this.scriptError = null;
+        this.filteredRows = new();
+
+        // picked a random type for this, doesn't really matter
+        var luminaTypes = Assembly.GetAssembly(typeof(Lumina.Excel.GeneratedSheets.Addon))?.GetTypes()
+            .Where(t => t.Namespace == "Lumina.Excel.GeneratedSheets")
+            .ToList();
+        var sheets = luminaTypes?
+            .Where(t => t.GetCustomAttributes(typeof(SheetAttribute), false).Length > 0)
+            .ToDictionary(t => ((SheetAttribute) t.GetCustomAttributes(typeof(SheetAttribute), false)[0]).Name);
+
+        Type? sheetRow = null;
+        if (sheets?.TryGetValue(this.selectedSheet!.Name, out var sheetType) == true) {
+            sheetRow = sheetType;
+        }
+
+        // GameData.GetExcelSheet<T>();
+        var getExcelSheet = typeof(GameData).GetMethod("GetExcelSheet", Type.EmptyTypes);
+        var genericMethod = sheetRow is not null ? getExcelSheet?.MakeGenericMethod(sheetRow) : null;
+        var sheetInstance = genericMethod?.Invoke(this.gameData.GameData, []);
+
+        var ct = new CancellationTokenSource();
+        Task.Run(async () => {
+            try {
+                var globalsType = sheetRow != null
+                                      ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
+                                      : null;
+                var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
+                expr.Compile(ct.Token);
+
+                for (var i = 0u; i < this.selectedSheet!.RowCount; i++) {
+                    if (ct.IsCancellationRequested) {
+                        this.logger.LogDebug("Filter script cancelled - aborting");
+                        return;
+                    }
+
+                    var row = this.GetRow(this.selectedSheet, this.rowMappings[this.selectedSheet.Name], i);
+                    if (row is null) continue;
+
+                    async void SimpleEval() {
+                        try {
+                            var res = await expr.RunAsync(cancellationToken: ct.Token);
+                            if (res.ReturnValue) this.filteredRows?.Add(i);
+                        } catch (Exception e) {
+                            this.scriptError = e.Message;
+                        }
+                    }
+
+                    if (sheetRow is null) {
+                        SimpleEval();
+                    } else {
+                        object? instance;
+                        if (row.SubRowId == 0) {
+                            // sheet.GetRow(row.RowId);
+                            var getRow = sheetInstance?.GetType().GetMethod("GetRow", [typeof(uint)]);
+                            instance = getRow?.Invoke(sheetInstance, [row.RowId]);
+                        } else {
+                            // sheet.GetRow(row.RowId, row.SubRowId);
+                            var getRow = sheetInstance?.GetType()
+                                .GetMethod("GetRow", [typeof(uint), typeof(uint)]);
+                            instance = getRow?.Invoke(sheetInstance, [row.RowId, row.SubRowId]);
+                        }
+
+                        // new ExcelScriptingGlobal<ExcelRow>(sheet, row);
+                        var excelScriptingGlobal = typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow);
+                        var globals = Activator.CreateInstance(excelScriptingGlobal, sheetInstance, instance);
+                        if (globals is null) {
+                            SimpleEval();
+                        } else {
+                            try {
+                                var res = await expr.RunAsync(globals, ct.Token);
+                                if (res.ReturnValue) this.filteredRows?.Add(i);
+                            } catch (Exception e) {
+                                this.scriptError = e.Message;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                this.logger.LogError(e, "Filter script failed");
+                this.scriptError = e.Message;
+            }
+
+            this.logger.LogDebug("Filter script finished");
+            this.scriptToken = null;
+        }, ct.Token);
+
+        this.scriptToken = ct;
     }
 
     // Building a new RowParser every time is probably not the best idea, but doesn't seem to impact performance that hard

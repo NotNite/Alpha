@@ -10,6 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.11.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
 
         <PackageReference Include="Lumina" Version="4.1.0"/>
