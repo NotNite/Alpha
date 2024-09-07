@@ -59,7 +59,7 @@ public class Components {
 
         ImGui.BulletText("Dear ImGui (the Alpha UI)");
         ImGui.BulletText("Veldrid (the graphics backend)");
-        ImGui.BulletText("Lumina, (SqPack/Excel parsing)");
+        ImGui.BulletText("Lumina (SqPack/Excel parsing)");
         ImGui.BulletText("SaintCoinach and EXDSchema (Excel schemas)");
         ImGui.BulletText("ResLogger2 (path lists)");
 
