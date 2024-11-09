@@ -9,10 +9,10 @@ namespace Alpha.Services.Excel.Cells;
 public class ComplexLinkCell : Cell {
     public const string OpenInNewWindow = "Open in new window";
 
-    private List<(RawExcelSheet, int, int)> links;
+    private List<(AlphaSheet, int, int)> links;
 
     [SetsRequiredMembers]
-    public ComplexLinkCell(int row, int column, object? data, List<(RawExcelSheet, int, int)> links) {
+    public ComplexLinkCell(int row, int column, object? data, List<(AlphaSheet, int, int)> links) {
         this.Row = row;
         this.Column = column;
         this.Data = data;
@@ -28,7 +28,7 @@ public class ComplexLinkCell : Cell {
         }
 
         foreach (var (sheet, row, col) in this.links) {
-            var text = $"{sheet.Name}#{row}" + $"##{this.Row}_{this.Column}_{sheet.Name}_{row}";
+            var text = $"{sheet}#{row}" + $"##{this.Row}_{this.Column}_{sheet.Name}_{row}";
             if (ImGui.Button(text)) {
                 window.OpenSheet(sheet, row);
             }

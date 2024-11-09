@@ -50,18 +50,18 @@ public class ComplexLinkConverterDefinition : ConverterDefinition {
 
     private bool CheckWhenClause(
         ExcelService excel,
-        RawExcelSheet sheet,
+        AlphaSheet sheet,
         int rowId,
         WhenClause when
     ) {
         if (!excel.SheetDefinitions.TryGetValue(sheet.Name, out var def)) return false;
         if (def is null) return false;
 
-        for (var i = 0; i < sheet.ColumnCount; i++) {
+        for (var i = 0; i < sheet.Sheet.Columns.Count; i++) {
             var colName = def.GetNameForColumn(i);
             if (colName == when.Key) {
-                var value = sheet.GetRow((uint) rowId)?.ReadColumnRaw(i);
-                if (value is null) continue;
+                var value = sheet.GetRow((uint) rowId)?.ReadColumn(i);
+                if (value is null) return false;
                 if (this.Compare(value, when.Value)) return true;
             }
         }
@@ -71,7 +71,7 @@ public class ComplexLinkConverterDefinition : ConverterDefinition {
 
     public IEnumerable<ComplexLinkResolution> ResolveComplexLink(
         ExcelService excel,
-        RawExcelSheet sheet,
+        AlphaSheet sheet,
         int rowId,
         int targetRowId
     ) {

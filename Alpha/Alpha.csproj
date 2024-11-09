@@ -13,8 +13,8 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.11.0"/>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
 
-        <PackageReference Include="Lumina" Version="4.1.0"/>
-        <PackageReference Include="Lumina.Excel" Version="7.0.1"/>
+        <PackageReference Include="Lumina" Version="5.2.1"/>
+        <PackageReference Include="Lumina.Excel" Version="7.0.3"/>
 
         <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0"/>
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>

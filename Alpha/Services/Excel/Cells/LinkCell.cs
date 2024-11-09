@@ -9,14 +9,14 @@ namespace Alpha.Services.Excel.Cells;
 public class LinkCell : Cell {
     public const string OpenInNewWindow = "Open in new window";
 
-    private RawExcelSheet target;
+    private AlphaSheet target;
     private int targetRow;
     private int targetCol;
     private string text;
     private string rowColStr;
 
     [SetsRequiredMembers]
-    public LinkCell(int row, int column, object? data, RawExcelSheet target, int targetCol) {
+    public LinkCell(int row, int column, object? data, AlphaSheet target, int targetCol) {
         this.Row = row;
         this.Column = column;
         this.Data = data;

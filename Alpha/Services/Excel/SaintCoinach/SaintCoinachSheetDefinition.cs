@@ -97,7 +97,7 @@ public class SaintCoinachSheetDefinition : SheetDefinition {
         return null;
     }
 
-    public override Cell? GetCell(ExcelService excel, RawExcelSheet sheet, int row, int column, object? data) {
+    public override Cell? GetCell(ExcelService excel, AlphaSheet sheet, int row, int column, object? data) {
         var converter = this.GetConverterForColumn(column);
         if (converter is null) return null;
 
@@ -128,7 +128,7 @@ public class SaintCoinachSheetDefinition : SheetDefinition {
                     targetRow
                 );
 
-                var result = new List<(RawExcelSheet, int, int)>();
+                var result = new List<(AlphaSheet, int, int)>();
                 foreach (var link in resolvedLinks) {
                     var targetSheet = excel.GetSheet(link.Link);
                     if (targetSheet is null) continue;

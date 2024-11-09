@@ -8,5 +8,5 @@ public abstract class SheetDefinition {
 
     public abstract string? GetNameForColumn(int index);
     public abstract int? GetColumnForName(string name);
-    public abstract Cell? GetCell(ExcelService excel, RawExcelSheet sheet, int row, int column, object? data);
+    public abstract Cell? GetCell(ExcelService excel, AlphaSheet sheet, int row, int column, object? data);
 }

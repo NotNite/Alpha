@@ -7,6 +7,7 @@ using Alpha.Services.Excel.Cells;
 using Alpha.Utils;
 using Hexa.NET.ImGui;
 using Lumina;
+using Lumina.Data;
 using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
@@ -17,9 +18,7 @@ namespace Alpha.Gui.Windows;
 
 [Window("Excel")]
 public class ExcelWindow : Window, IDisposable {
-    private RawExcelSheet? selectedSheet;
-    private Dictionary<string, Dictionary<uint, (uint, uint?)>>
-        rowMappings = new(); // Working around a Lumina bug to map index to row
+    private AlphaSheet? selectedSheet;
 
     private string sidebarFilter = string.Empty;
     private List<string>? filteredSheets;
@@ -35,7 +34,7 @@ public class ExcelWindow : Window, IDisposable {
     private bool painted;
     private float? itemHeight = 0;
 
-    private Dictionary<RawExcelSheet, Dictionary<(int, int), CachedCell>> cellCache = new();
+    private readonly Dictionary<AlphaSheet, Dictionary<(int, int), CachedCell>> cellCache = new();
 
     private CancellationTokenSource? scriptToken;
     private CancellationTokenSource? sidebarToken;
@@ -64,7 +63,6 @@ public class ExcelWindow : Window, IDisposable {
         this.selectedSheet = null;
         this.filteredSheets = null;
         this.filteredRows = null;
-        this.rowMappings.Clear();
         this.cellCache.Clear();
         this.queuedOpen = null;
         this.highlightRow = null;
@@ -185,7 +183,7 @@ public class ExcelWindow : Window, IDisposable {
         this.queuedOpen = (sheetName, scrollTo);
     }
 
-    public void OpenSheet(RawExcelSheet sheet, int? scrollTo = null) => this.OpenSheet(sheet.Name, scrollTo);
+    public void OpenSheet(AlphaSheet sheet, int? scrollTo = null) => this.OpenSheet(sheet.Name, scrollTo);
 
     private void ProcessQueuedOpen() {
         var (sheetName, scrollTo) = this.queuedOpen!.Value;
@@ -208,36 +206,8 @@ public class ExcelWindow : Window, IDisposable {
         this.filteredRows = null;
         this.itemHeight = 0;
 
-        this.rowMappings = new();
-        this.rowMappings[sheetName] = this.SetupRows(sheet);
-
         this.contentFilter = string.Empty;
         this.ResolveContentFilter();
-    }
-
-    // Mapping index to row/subrow ID, since they are not linear
-    private Dictionary<uint, (uint, uint?)> SetupRows(RawExcelSheet sheet) {
-        var rowMapping = new Dictionary<uint, (uint, uint?)>();
-
-        var currentRow = 0u;
-        foreach (var page in sheet.DataPages) {
-            foreach (var row in page.File.RowData.Values) {
-                var parser = new RowParser(sheet, page.File);
-                parser.SeekToRow(row.RowId);
-
-                if (sheet.Header.Variant == ExcelVariant.Subrows) {
-                    for (uint i = 0; i < parser.RowCount; i++) {
-                        rowMapping[currentRow] = (row.RowId, i);
-                        currentRow++;
-                    }
-                } else {
-                    rowMapping[currentRow] = (row.RowId, null);
-                    currentRow++;
-                }
-            }
-        }
-
-        return rowMapping;
     }
 
     private void ResolveSidebarFilter() {
@@ -295,25 +265,22 @@ public class ExcelWindow : Window, IDisposable {
     private void ContentFilterSimple(string filter) {
         Task.Run(() => {
             this.filteredRows = new();
-            var colCount = this.selectedSheet!.ColumnCount;
-            var rowMapping = this.rowMappings[this.selectedSheet.Name];
+            var colCount = this.selectedSheet!.Sheet.Columns.Count;
 
-            for (var i = 0u; i < this.selectedSheet.RowCount; i++) {
+            for (var i = 0u; i < this.selectedSheet.Sheet.Count; i++) {
                 if (this.filterCts?.Token.IsCancellationRequested == true) return;
 
-                var row = this.GetRow(this.selectedSheet, rowMapping, i);
+                var row = this.selectedSheet.GetRow(i);
                 if (row is null) continue;
 
-                var rowStr = row.RowId.ToString();
-                if (row.SubRowId != 0) rowStr += $".{row.SubRowId}";
+                var rowStr = row.Value.RowId.ToString();
                 if (rowStr.Contains(filter, StringComparison.CurrentCultureIgnoreCase)) {
                     this.filteredRows!.Add(i);
                     continue;
                 }
 
                 for (var col = 0; col < colCount; col++) {
-                    var obj = row.ReadColumnRaw(col);
-                    if (obj is null) continue;
+                    var obj = row.Value.ReadColumn(col);
                     var str = obj.ToString();
 
                     if (str?.ToLower().Contains(filter, StringComparison.CurrentCultureIgnoreCase) == true) {
@@ -330,12 +297,12 @@ public class ExcelWindow : Window, IDisposable {
         this.filteredRows = new();
 
         // picked a random type for this, doesn't really matter
-        var luminaTypes = Assembly.GetAssembly(typeof(Lumina.Excel.GeneratedSheets.Addon))?.GetTypes()
-            .Where(t => t.Namespace == "Lumina.Excel.GeneratedSheets")
+        var luminaTypes = Assembly.GetAssembly(typeof(Lumina.Excel.Sheets.Addon))?.GetTypes()
+            .Where(t => t.Namespace == "Lumina.Excel.Sheets")
             .ToList();
         var sheets = luminaTypes?
             .Where(t => t.GetCustomAttributes(typeof(SheetAttribute), false).Length > 0)
-            .ToDictionary(t => ((SheetAttribute) t.GetCustomAttributes(typeof(SheetAttribute), false)[0]).Name);
+            .ToDictionary(t => ((SheetAttribute) t.GetCustomAttributes(typeof(SheetAttribute), false)[0]).Name!);
 
         Type? sheetRow = null;
         if (sheets?.TryGetValue(this.selectedSheet!.Name, out var sheetType) == true) {
@@ -343,9 +310,9 @@ public class ExcelWindow : Window, IDisposable {
         }
 
         // GameData.GetExcelSheet<T>();
-        var getExcelSheet = typeof(GameData).GetMethod("GetExcelSheet", Type.EmptyTypes);
+        var getExcelSheet = typeof(GameData).GetMethods().FirstOrDefault(x => x.Name == "GetExcelSheet");
         var genericMethod = sheetRow is not null ? getExcelSheet?.MakeGenericMethod(sheetRow) : null;
-        var sheetInstance = genericMethod?.Invoke(this.gameData.GameData, []);
+        var sheetInstance = genericMethod?.Invoke(this.gameData.GameData, [null, null]);
 
         var ct = new CancellationTokenSource();
         Task.Run(async () => {
@@ -356,13 +323,13 @@ public class ExcelWindow : Window, IDisposable {
                 var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
                 expr.Compile(ct.Token);
 
-                for (var i = 0u; i < this.selectedSheet!.RowCount; i++) {
+                for (var i = 0u; i < this.selectedSheet!.Sheet.Count; i++) {
                     if (ct.IsCancellationRequested) {
                         this.logger.LogDebug("Filter script cancelled - aborting");
                         return;
                     }
 
-                    var row = this.GetRow(this.selectedSheet, this.rowMappings[this.selectedSheet.Name], i);
+                    var row = this.selectedSheet.GetRow(i);
                     if (row is null) continue;
 
                     async void SimpleEval() {
@@ -377,17 +344,8 @@ public class ExcelWindow : Window, IDisposable {
                     if (sheetRow is null) {
                         SimpleEval();
                     } else {
-                        object? instance;
-                        if (row.SubRowId == 0) {
-                            // sheet.GetRow(row.RowId);
-                            var getRow = sheetInstance?.GetType().GetMethod("GetRow", [typeof(uint)]);
-                            instance = getRow?.Invoke(sheetInstance, [row.RowId]);
-                        } else {
-                            // sheet.GetRow(row.RowId, row.SubRowId);
-                            var getRow = sheetInstance?.GetType()
-                                .GetMethod("GetRow", [typeof(uint), typeof(uint)]);
-                            instance = getRow?.Invoke(sheetInstance, [row.RowId, row.SubRowId]);
-                        }
+                        var getRow = sheetInstance?.GetType().GetMethod("GetRow", [typeof(uint)]);
+                        var instance = getRow?.Invoke(sheetInstance, [row.Value.RowId]);
 
                         // new ExcelScriptingGlobal<ExcelRow>(sheet, row);
                         var excelScriptingGlobal = typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow);
@@ -397,7 +355,9 @@ public class ExcelWindow : Window, IDisposable {
                         } else {
                             try {
                                 var res = await expr.RunAsync(globals, ct.Token);
-                                if (res.ReturnValue) this.filteredRows?.Add(i);
+                                if (res.ReturnValue) {
+                                    this.filteredRows?.Add(i);
+                                }
                             } catch (Exception e) {
                                 this.scriptError = e.Message;
                             }
@@ -416,27 +376,6 @@ public class ExcelWindow : Window, IDisposable {
         this.scriptToken = ct;
     }
 
-    // Building a new RowParser every time is probably not the best idea, but doesn't seem to impact performance that hard
-    private RowParser? GetRow(
-        RawExcelSheet sheet,
-        Dictionary<uint, (uint, uint?)> mapping,
-        uint index
-    ) {
-        if (!mapping.TryGetValue(index, out var data)) return null;
-        var (row, subrow) = data;
-        var page = sheet.DataPages.FirstOrDefault(x => x.File.RowData.ContainsKey(row));
-        if (page is null) return null;
-
-        var parser = new RowParser(sheet, page.File);
-        if (subrow is not null) {
-            parser.SeekToRow(row, subrow.Value);
-        } else {
-            parser.SeekToRow(row);
-        }
-
-        return parser;
-    }
-
     private void DrawSheet(float width) {
         ImGui.SetNextItemWidth(width);
 
@@ -446,8 +385,8 @@ public class ExcelWindow : Window, IDisposable {
             return;
         }
 
-        var rowCount = this.selectedSheet.RowCount;
-        var colCount = this.selectedSheet.ColumnCount;
+        var rowCount = this.selectedSheet.Sheet.Count;
+        var colCount = this.selectedSheet.Sheet.Columns.Count;
         colCount = Math.Min(colCount, 2048 - 1); // I think this is an ImGui limitation?
 
         const ImGuiTableFlags flags = ImGuiTableFlags.Borders
@@ -473,7 +412,7 @@ public class ExcelWindow : Window, IDisposable {
             var colOffsets = new Dictionary<int, uint>();
 
             for (var i = 0; i < colCount; i++) {
-                var col = this.selectedSheet.Columns[i];
+                var col = this.selectedSheet.Sheet.Columns[i];
                 colOffsets[i] = col.Offset;
             }
 
@@ -490,7 +429,7 @@ public class ExcelWindow : Window, IDisposable {
             var colId = colMappings[i];
             var colName = sheetDefinition?.GetNameForColumn(colId) ?? colId.ToString();
 
-            var col = this.selectedSheet.Columns[colId];
+            var col = this.selectedSheet.Sheet.Columns[colId];
             var offset = col.Offset;
             var offsetStr = $"Offset: {offset} (0x{offset:X})\nIndex: {colId}\nData type: {col.Type.ToString()}";
 
@@ -519,8 +458,7 @@ public class ExcelWindow : Window, IDisposable {
             }
 
             // TODO: probably slow as hell, cache this
-            var mapping = this.rowMappings[this.selectedSheet.Name];
-            var row = this.GetRow(this.selectedSheet, mapping, (uint) rowId);
+            var row = this.selectedSheet.GetRow((uint) rowId);
             if (row is null) {
                 ImGui.TableNextRow();
                 continue;
@@ -539,8 +477,7 @@ public class ExcelWindow : Window, IDisposable {
             if (shouldPopColor) ImGui.PopStyleColor(2);
             if (highlighted) shouldPopColor = true;
 
-            var str = row.RowId.ToString();
-            if (row.SubRowId != 0) str += $".{row.SubRowId}";
+            var str = row.Value.RowId.ToString();
             ImGui.TextUnformatted(str);
             if (ImGui.BeginPopupContextItem($"##ExcelModule_Row_{rowId}")) {
                 if (ImGui.Selectable("Copy row ID")) {
@@ -555,7 +492,7 @@ public class ExcelWindow : Window, IDisposable {
             for (var col = 0; col < colCount; col++) {
                 var prev = ImGui.GetCursorPosY();
 
-                this.DrawCell(this.selectedSheet, rowId, colMappings[col], rowIdIsIndex: true);
+                this.DrawCell(this.selectedSheet, rowId, colMappings[col]);
 
                 var next = ImGui.GetCursorPosY();
                 if (this.itemHeight is not null) {
@@ -581,11 +518,7 @@ public class ExcelWindow : Window, IDisposable {
         // seems to crash if you scroll immediately, seems to do nothing if you scroll too little
         // stupid tick hack works for now lol
         if (this.tempScroll is not null && this.painted) {
-            var idx = this.rowMappings[this.selectedSheet.Name]
-                .FirstOrDefault(x => x.Value.Item1 == this.tempScroll.Value)
-                .Key;
-            ImGuiP.SetScrollY(idx * this.itemHeight ?? 0);
-
+            ImGuiP.SetScrollY(this.tempScroll * this.itemHeight ?? 0);
             this.tempScroll = null;
         }
 
@@ -595,7 +528,7 @@ public class ExcelWindow : Window, IDisposable {
         this.painted = true;
     }
 
-    private Cell GetCell(RawExcelSheet sheet, int rowId, int colId, bool rowIdIsIndex = false) {
+    private Cell GetCell(AlphaSheet sheet, int rowId, int colId) {
         if (!this.cellCache.TryGetValue(sheet, out var realCellCache)) {
             this.cellCache[sheet] = realCellCache = new();
         }
@@ -604,28 +537,16 @@ public class ExcelWindow : Window, IDisposable {
             return cachedCell.Value;
         }
 
-        RowParser? parser;
-        if (rowIdIsIndex) {
-            if (!this.rowMappings.TryGetValue(sheet.Name, out var mapping)) {
-                this.rowMappings[sheet.Name] = mapping = this.SetupRows(sheet);
-            }
-
-            parser = this.GetRow(sheet, mapping, (uint) rowId);
-        } else {
-            parser = sheet.GetRow((uint) rowId);
-        }
-
-        var data = parser?.ReadColumnRaw(colId);
+        var row = sheet.GetRow((uint) rowId);
+        var data = row?.ReadColumn(colId);
         var cell = this.excel.GetCell(sheet, rowId, colId, data);
         var cached = new CachedCell(cell);
         realCellCache[(rowId, colId)] = cached;
         return cached.Value;
     }
 
-    public void DrawCell(
-        RawExcelSheet rawExcelSheet, int rowId, int colId, bool inAnotherDraw = false, bool rowIdIsIndex = false
-    ) {
-        var cell = this.GetCell(rawExcelSheet, rowId, colId, rowIdIsIndex);
+    public void DrawCell(AlphaSheet sheet, int rowId, int colId, bool inAnotherDraw = false) {
+        var cell = this.GetCell(sheet, rowId, colId);
         cell.Draw(this, inAnotherDraw);
     }
 

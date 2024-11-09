@@ -9,21 +9,24 @@ namespace Alpha.Services.Excel;
 
 public class ExcelService(GameDataService gameData, WindowManagerService windowManager, ILogger<ExcelService> logger)
     : IDisposable {
-    public readonly Dictionary<string, RawExcelSheet?> SheetsCache = new();
+    public readonly Dictionary<string, AlphaSheet?> SheetsCache = new();
     public readonly Dictionary<string, SheetDefinition?> SheetDefinitions = new();
-    public string[] Sheets => gameData.GameData?.Excel.GetSheetNames().ToArray() ?? [];
+    public string[] Sheets => (gameData.GameData?.Excel.SheetNames.ToArray() ?? [])
+        .OrderBy(s => s)
+        .ToArray();
 
-    private HttpClient httpClient = new();
+    private readonly HttpClient httpClient = new();
 
     public void Dispose() {
         this.httpClient.Dispose();
     }
 
-    public RawExcelSheet? GetSheet(string name, bool skipCache = false) {
+    public AlphaSheet? GetSheet(string name, bool skipCache = false) {
         if (this.SheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
-        sheet = gameData.GameData?.Excel.GetSheetRaw(name);
-        if (skipCache) return gameData.GameData?.Excel.GetSheetRaw(name);
+        var rawSheet = gameData.GameData?.Excel.GetSheet<RawRow>(name: name);
+        sheet = rawSheet is not null ? new AlphaSheet(rawSheet, name) : null;
+        if (skipCache) return sheet;
         this.SheetsCache[name] = sheet;
 
         if (!this.SheetDefinitions.ContainsKey(name)) {
@@ -38,12 +41,12 @@ public class ExcelService(GameDataService gameData, WindowManagerService windowM
         if (sheet is not null) window.OpenSheet(sheet, scrollTo);
     }
 
-    public void OpenNewWindow(RawExcelSheet? sheet = null, int? row = null) {
+    public void OpenNewWindow(AlphaSheet? sheet = null, int? row = null) {
         var window = windowManager.CreateWindow<ExcelWindow>();
         if (sheet is not null) window.OpenSheet(sheet, row);
     }
 
-    public Cell GetCell(RawExcelSheet sheet, int row, int column, object? data) {
+    public Cell GetCell(AlphaSheet sheet, int row, int column, object? data) {
         var sheetDefinition = this.SheetDefinitions[sheet.Name];
         var cell = sheetDefinition?.GetCell(this, sheet, row, column, data);
         return cell ?? new DefaultCell(row, column, data);

@@ -2,16 +2,9 @@
 
 namespace Alpha.Services.Excel;
 
-public class ExcelScriptingGlobal<T> where T : ExcelRow {
-    public ExcelSheet<T> Sheet { get; }
-    public T Row { get; }
-    public uint RowId { get; }
-    public uint SubRowId { get; }
-
-    public ExcelScriptingGlobal(ExcelSheet<T> sheet, T row) {
-        Sheet = sheet;
-        Row = row;
-        RowId = row.RowId;
-        SubRowId = row.SubRowId;
-    }
+public class ExcelScriptingGlobal<T>(ExcelSheet<T> sheet, T row)
+    where T : struct, IExcelRow<T> {
+    public ExcelSheet<T> Sheet { get; } = sheet;
+    public T Row { get; } = row;
+    public uint RowId { get; } = row.RowId;
 }
