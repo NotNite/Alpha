@@ -15,7 +15,8 @@ public class FilesystemWindow : Window, IDisposable {
     public FileResource? File;
 
     private string filter = string.Empty;
-    private List<string> filteredDirectories = new();
+    private readonly List<string> filteredDirectories = [];
+    private readonly List<string> visibleRootCategories = [..PathService.RootCategories.Keys];
     private float sidebarWidth = 300f;
 
     private readonly GameDataService gameData;
@@ -70,21 +71,32 @@ public class FilesystemWindow : Window, IDisposable {
     private void DrawSidebar() {
         ImGui.SetNextItemWidth(this.sidebarWidth);
         if (ImGui.InputText("##FilesystemWindow_Filter", ref this.filter, 1024, ImGuiInputTextFlags.EnterReturnsTrue)) {
-            this.filteredDirectories.Clear();
-            foreach (var files in this.pathService.Files.Values) {
-                foreach (var file in files.Values) {
-                    var path = file.Path ?? Util.PrintFileHash(file.Hash);
-                    if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
-                        var dir = path.AsSpan(0, path.LastIndexOf('/')).ToString();
-                        if (!this.filteredDirectories.Contains(dir)) this.filteredDirectories.Add(dir);
+            if (this.filter.Length > 0) {
+                this.filteredDirectories.Clear();
+                this.visibleRootCategories.Clear();
+                foreach (var files in this.pathService.Files.Values) {
+                    foreach (var file in files.Values) {
+                        var path = file.Path ?? Util.PrintFileHash(file.Hash);
+                        if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
+                            var dir = path.AsSpan(0, path.LastIndexOf('/')).ToString();
+                            if (!this.filteredDirectories.Contains(dir)) this.filteredDirectories.Add(dir);
+                            if (dir.Split('/').FirstOrDefault() is { } root &&
+                                !this.visibleRootCategories.Contains(root))
+                                this.visibleRootCategories.Add(root);
+                        }
                     }
                 }
+            } else {
+                this.filteredDirectories.Clear();
+                this.visibleRootCategories.Clear();
+                this.visibleRootCategories.AddRange(PathService.RootCategories.Keys);
             }
         }
 
         if (ImGui.BeginChild("##FilesystemWindow_Sidebar", ImGui.GetContentRegionAvail() with {X = this.sidebarWidth},
                 ImGuiChildFlags.Borders)) {
-            foreach (var (name, id) in PathService.RootCategories) {
+            foreach (var name in this.visibleRootCategories) {
+                var id = PathService.RootCategories[name];
                 if (ImGui.TreeNode(name + "/")) {
                     this.DrawFolder(name, new PathService.Category(id, 0), 0);
                     ImGui.TreePop();
