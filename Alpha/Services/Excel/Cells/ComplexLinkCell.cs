@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Alpha.Gui.Windows;
-using ImGuiNET;
+using Alpha.Utils;
+using Hexa.NET.ImGui;
 using Lumina.Excel;
 
 namespace Alpha.Services.Excel.Cells;
@@ -19,7 +20,7 @@ public class ComplexLinkCell : Cell {
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (inAnotherDraw && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
+        if (inAnotherDraw && Util.IsKeyDown(ImGuiKey.ModAlt)) {
             foreach (var (sheet, row, col) in this.links) {
                 window.DrawCell(sheet, row, col, inAnotherDraw: true);
             }

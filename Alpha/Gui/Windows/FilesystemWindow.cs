@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using Alpha.Services;
 using Alpha.Utils;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Lumina.Data;
 using Lumina.Data.Files;
 using Microsoft.Extensions.Logging;
@@ -83,7 +83,7 @@ public class FilesystemWindow : Window, IDisposable {
         }
 
         if (ImGui.BeginChild("##FilesystemWindow_Sidebar", ImGui.GetContentRegionAvail() with {X = this.sidebarWidth},
-                ImGuiChildFlags.Border)) {
+                ImGuiChildFlags.Borders)) {
             foreach (var (name, id) in PathService.RootCategories) {
                 if (ImGui.TreeNode(name + "/")) {
                     this.DrawFolder(name, new PathService.Category(id, 0), 0);
@@ -98,7 +98,7 @@ public class FilesystemWindow : Window, IDisposable {
     private void DrawContent() {
         if (this.SelectedFile is null) return;
 
-        if (ImGui.BeginChild("##FilesystemWindow_Content", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Border)) {
+        if (ImGui.BeginChild("##FilesystemWindow_Content", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders)) {
             var (resource, file) = this.SelectedFile.Value;
             var filePath = file.Path ?? Util.PrintFileHash(file.Hash);
             ImGui.TextUnformatted(filePath);
@@ -123,7 +123,7 @@ public class FilesystemWindow : Window, IDisposable {
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 size = Util.ClampImageSize(size, ImGui.GetContentRegionAvail());
                 var img = this.gui.GetTexture(texFile);
-                ImGui.Image(img.Handle, size);
+                img.Draw(size);
             }
 
             ImGui.EndChild();

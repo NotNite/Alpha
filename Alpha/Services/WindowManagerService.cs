@@ -3,7 +3,7 @@ using System.Reflection;
 using Alpha.Gui;
 using Alpha.Gui.Windows;
 using Alpha.Gui.Windows.Ftue;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -97,7 +97,7 @@ public class WindowManagerService(
                     ImGui.EndMenu();
                 }
 
-                ImGui.EndMenuBar();
+                ImGui.EndMainMenuBar();
             }
         }
 

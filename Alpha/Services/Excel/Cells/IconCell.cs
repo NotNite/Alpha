@@ -2,7 +2,7 @@
 using System.Numerics;
 using Alpha.Gui.Windows;
 using Alpha.Utils;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Lumina.Data.Files;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -63,20 +63,20 @@ public class IconCell : Cell {
 
         const int maxY = 512;
         if (inAnotherDraw) {
-            var shouldShowMagnum = ImGui.IsKeyDown(ImGuiKey.ModAlt);
+            var shouldShowMagnum = Util.IsKeyDown(ImGuiKey.ModAlt);
             if (shouldShowMagnum) {
                 var magnumSize = ScaleSize(icon.Size, maxY);
-                ImGui.Image(icon.Handle, magnumSize);
+                icon.Draw(magnumSize);
             } else {
-                ImGui.Image(icon.Handle, lineSize);
+                icon.Draw(lineSize);
             }
         } else {
-            ImGui.Image(icon.Handle, lineSize);
-            var shouldShowMagnum = ImGui.IsKeyDown(ImGuiKey.ModAlt) && (ImGui.IsItemHovered() || inAnotherDraw);
+            icon.Draw(lineSize);
+            var shouldShowMagnum = Util.IsKeyDown(ImGuiKey.ModAlt) && (ImGui.IsItemHovered() || inAnotherDraw);
             if (shouldShowMagnum) {
                 var magnumSize = ScaleSize(icon.Size, maxY);
                 ImGui.BeginTooltip();
-                ImGui.Image(icon.Handle, magnumSize);
+                icon.Draw(magnumSize);
                 ImGui.EndTooltip();
             }
         }

@@ -4,7 +4,8 @@ using System.Reflection;
 using Alpha.Services;
 using Alpha.Services.Excel;
 using Alpha.Services.Excel.Cells;
-using ImGuiNET;
+using Alpha.Utils;
+using Hexa.NET.ImGui;
 using Lumina;
 using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
@@ -112,7 +113,7 @@ public class ExcelWindow : Window, IDisposable {
         }
 
         var cra = ImGui.GetContentRegionAvail();
-        ImGui.BeginChild("##ExcelModule_Sidebar", cra with {X = this.sidebarWidth}, ImGuiChildFlags.Border);
+        ImGui.BeginChild("##ExcelModule_Sidebar", cra with {X = this.sidebarWidth}, ImGuiChildFlags.Borders);
 
         var sheets = this.filteredSheets?.ToArray() ?? this.excel.Sheets;
         foreach (var sheet in sheets) {
@@ -154,7 +155,7 @@ public class ExcelWindow : Window, IDisposable {
         }
 
         // Disable filter on right click
-        if (ImGui.IsItemHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Right)) {
+        if (ImGui.IsItemHovered() && Util.IsMouseClicked(ImGuiMouseButton.Right)) {
             this.contentFilter = string.Empty;
             this.ResolveContentFilter();
         }
@@ -579,22 +580,19 @@ public class ExcelWindow : Window, IDisposable {
         // I don't know why I need to do this but I really don't care, it's 12 AM and I want sleep
         // seems to crash if you scroll immediately, seems to do nothing if you scroll too little
         // stupid tick hack works for now lol
-        if (this.tempScroll is not null) {
-            if (this.painted) {
-                var idx = this.rowMappings[this.selectedSheet.Name]
-                    .FirstOrDefault(x => x.Value.Item1 == this.tempScroll.Value)
-                    .Key;
-                ImGui.SetScrollY(idx * this.itemHeight ?? 0);
+        if (this.tempScroll is not null && this.painted) {
+            var idx = this.rowMappings[this.selectedSheet.Name]
+                .FirstOrDefault(x => x.Value.Item1 == this.tempScroll.Value)
+                .Key;
+            ImGuiP.SetScrollY(idx * this.itemHeight ?? 0);
 
-                this.tempScroll = null;
-                this.painted = false;
-            } else {
-                this.painted = true;
-            }
+            this.tempScroll = null;
         }
 
         clipper.End();
         ImGui.EndTable();
+
+        this.painted = true;
     }
 
     private Cell GetCell(RawExcelSheet sheet, int rowId, int colId, bool rowIdIsIndex = false) {

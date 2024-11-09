@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using Alpha.Services;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 
 namespace Alpha.Gui.Windows;
 

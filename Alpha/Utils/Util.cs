@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Hexa.NET.ImGui;
 using Lumina.Data.Files;
 using NativeFileDialog.Extended;
 using SixLabors.ImageSharp;
@@ -91,5 +92,22 @@ public static class Util {
         if (orig.X > max.X) return max with {Y = max.X / ratio};
         if (orig.Y > max.Y) return max with {X = max.Y * ratio};
         return orig;
+    }
+
+    // Unsure why these aren't in the ImGui global
+    public static bool IsKeyDown(ImGuiKey key) {
+        return ImGuiP.IsKeyDown(key);
+    }
+
+    public static bool IsMouseClicked(ImGuiMouseButton button) {
+        return ImGuiP.IsMouseClicked(button);
+    }
+
+    public static bool IsMouseReleased(ImGuiMouseButton button) {
+        return ImGuiP.IsMouseReleased(button);
+    }
+
+    public static bool IsMouseDown(ImGuiMouseButton button) {
+        return ImGuiP.IsMouseDown(button);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Alpha.Gui.Windows;
-using ImGuiNET;
+using Alpha.Utils;
+using Hexa.NET.ImGui;
 using Lumina.Excel;
 
 namespace Alpha.Services.Excel.Cells;
@@ -33,7 +34,7 @@ public class LinkCell : Cell {
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (inAnotherDraw && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
+        if (inAnotherDraw && Util.IsKeyDown(ImGuiKey.ModAlt)) {
             window.DrawCell(this.target, this.targetRow, this.targetCol, inAnotherDraw: true);
             return;
         }

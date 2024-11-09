@@ -1,10 +1,10 @@
 ﻿using System.Collections;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 
 namespace Alpha.Gui;
 
 public unsafe class ListClipper : IEnumerable<(int, int)> {
-    private ImGuiListClipperPtr clipper;
+    private ImGuiListClipper clipper;
     private readonly int rows;
     private readonly int columns;
     private readonly bool twoDimensional;
@@ -51,13 +51,12 @@ public unsafe class ListClipper : IEnumerable<(int, int)> {
         this.columns = cols;
         this.rows = this.twoDimensional ? items : (int) MathF.Ceiling((float) items / this.columns);
         this.itemRemainder = !this.twoDimensional ? items % this.columns : 0;
-        this.clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
+        this.clipper = new ImGuiListClipper();
         this.clipper.Begin(this.rows, itemHeight);
     }
 
     public void End() {
         this.clipper.End();
-        this.clipper.Destroy();
     }
 
     public IEnumerator<(int, int)> GetEnumerator() =>

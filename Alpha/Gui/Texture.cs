@@ -1,33 +1,22 @@
 ﻿using System.Numerics;
-using System.Runtime.InteropServices;
-using ImGuiNET;
-using Veldrid;
+using Hexa.NET.ImGui;
 
 namespace Alpha.Gui;
 
-public class Texture(nint realHandle, Vector2 size) : IDisposable {
+public class Texture {
     public double LastUsed = ImGui.GetTime();
-    public nint Handle => this.Use();
-    public Vector2 Size => size;
+    public nint? Handle;
+    public Vector2 Size = Vector2.Zero;
 
-    public TextureView? View;
-    public ResourceSet? Set;
-    public nint? Global;
+    public (byte[], uint, uint)? CreationData;
 
-    public Texture(nint realHandle, TextureView view, ResourceSet set, nint global, Vector2 size) : this(realHandle, size) {
-        this.View = view;
-        this.Set = set;
-        this.Global = global;
-    }
-
-    private nint Use() {
+    public void Draw(Vector2? drawSize = null) {
         this.LastUsed = ImGui.GetTime();
-        return realHandle;
-    }
-
-    public void Dispose() {
-        this.View?.Dispose();
-        this.Set?.Dispose();
-        if (this.Global != null) Marshal.FreeHGlobal(this.Global.Value);
+        var actualSize = drawSize ?? this.Size;
+        if (this.Handle is null) {
+            ImGui.Dummy(actualSize);
+        } else {
+            ImGui.Image((ulong) this.Handle, actualSize);
+        }
     }
 }

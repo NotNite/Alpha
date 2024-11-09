@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Numerics;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Serilog;
@@ -11,31 +12,34 @@ public class Config : IDisposable {
         Program.AppDir,
         "config.json"
     );
+    [JsonIgnore]
+    private static JsonSerializerOptions SerializerOptions => new() {
+        WriteIndented = true,
+        IncludeFields = true
+    };
 
     // UI
-    [JsonInclude] public int WindowX = 10;
-    [JsonInclude] public int WindowY = 10;
-    [JsonInclude] public int WindowWidth = 1280;
-    [JsonInclude] public int WindowHeight = 720;
+    public Vector2 WindowPos = new(100, 100);
+    public Vector2 WindowSize = new(1280, 720);
 
     // Initial setup
-    [JsonInclude] public List<string> GamePaths = new();
-    [JsonInclude] public string? CurrentGamePath;
-    [JsonInclude] public bool FtueComplete;
+    public List<string> GamePaths = new();
+    public string? CurrentGamePath;
+    public bool FtueComplete;
 
     // Excel
-    [JsonInclude] public bool SortByOffsets;
-    [JsonInclude] public bool AlwaysShowOffsets;
-    [JsonInclude] public bool HighlightLinks = true;
-    [JsonInclude] public bool PreferHighQuality = true;
-    [JsonInclude] public bool LineHeightImages;
+    public bool SortByOffsets;
+    public bool AlwaysShowOffsets;
+    public bool HighlightLinks = true;
+    public bool PreferHighQuality = true;
+    public bool LineHeightImages;
 
     public static Config Load() {
         Config config;
         try {
-            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath))!;
+            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath), SerializerOptions)!;
         } catch (Exception e) {
-            Log.Warning("Failed to load config file - creating a new one: {e}", e);
+            Log.Warning(e, "Failed to load config file - creating a new one");
             config = new Config();
         }
 
@@ -53,9 +57,7 @@ public class Config : IDisposable {
     }
 
     public void Save() {
-        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, new JsonSerializerOptions {
-            WriteIndented = true
-        }));
+        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, SerializerOptions));
     }
 
     public void Dispose() {
