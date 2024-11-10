@@ -6,6 +6,7 @@ using Alpha.Gui.Windows.Ftue;
 using Hexa.NET.ImGui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Serilog;
 
 namespace Alpha.Services;
@@ -13,7 +14,8 @@ namespace Alpha.Services;
 public class WindowManagerService(
     GuiService gui,
     Config config,
-    IServiceScopeFactory scopeFactory
+    IServiceScopeFactory scopeFactory,
+    ILogger<WindowManagerService> logger
 ) : IHostedService {
     private List<(Window Window, IServiceScope Scope)> windows = new();
     private Dictionary<string, Type> windowTypes = new();
@@ -109,8 +111,10 @@ public class WindowManagerService(
         foreach (var (window, scope) in this.windows.Where(w =>
                          !w.Window.IsOpen && !w.Window.GetType().GetCustomAttribute<WindowAttribute>()!.SingleInstance)
                      .ToList()) {
+            logger.LogInformation("Disposing window {Name}", window.Name);
             this.windows.Remove((window, scope));
             scope.Dispose();
+            GC.Collect();
         }
     }
 

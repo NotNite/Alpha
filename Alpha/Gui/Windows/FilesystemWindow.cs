@@ -11,7 +11,7 @@ using NativeFileDialog.Extended;
 namespace Alpha.Gui.Windows;
 
 [Window("Filesystem")]
-public class FilesystemWindow : Window {
+public class FilesystemWindow : Window, IDisposable {
     public (FileResource, PathService.File)? SelectedFile;
     public FileResource? File;
 
@@ -41,6 +41,10 @@ public class FilesystemWindow : Window {
         this.pathService.SetGameData(this.GameData);
 
         this.InitialSize = new Vector2(800, 600);
+    }
+
+    public void Dispose() {
+        this.pathService.Dispose();
     }
 
     private void GameDataChanged() {

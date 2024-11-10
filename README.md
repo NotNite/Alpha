@@ -2,9 +2,9 @@
 
 [![Nightly builds](https://github.com/NotNite/Alpha/actions/workflows/nightly.yml/badge.svg)](https://github.com/NotNite/Alpha/actions/workflows/nightly.yml)
 
-![Screenshot of Alpha](https://namazu.photos/i/lujfhpt2.png)
+![Screenshot of Alpha](https://fxdiscord.com/i/2q9sbm6b.png)
 
-Alpha is a FINAL FANTASY XIV toolkit for modding, datamining, and reverse engineering. It is written in C#, uses Lumina for game data, and uses ImGui.NET and Veldrid for rendering.
+Alpha is a FINAL FANTASY XIV toolkit for modding, datamining, and reverse engineering.
 
 ## Features
 
@@ -23,3 +23,10 @@ Alpha does not currently have a stable release, and does not operate under versi
   - This flake is not actively monitored and may fail to build. Please open an issue if you encounter troubles!
 
 You will need the .NET 8 Runtime. Windows users can find it [here](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer).
+
+## TODO
+
+Alpha recently went through a rewrite, and some features are missing:
+
+- [ ] Excel language switcher
+- [ ] EXDSchema support, and saving Excel schemas to disk

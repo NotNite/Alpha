@@ -50,7 +50,7 @@ public class Components {
         ImGui.NewLine();
 
         ImGui.BulletText("Dear ImGui (the Alpha UI)");
-        ImGui.BulletText("Veldrid (the graphics backend)");
+        ImGui.BulletText("HexaEngine (UI bindings)");
         ImGui.BulletText("Lumina (SqPack/Excel parsing)");
         ImGui.BulletText("SaintCoinach and EXDSchema (Excel schemas)");
         ImGui.BulletText("ResLogger2 (path lists)");
@@ -85,19 +85,15 @@ public class Components {
 
         if (ImGui.BeginTable("Path Lists Table", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit)) {
             ImGui.TableSetupColumn("Name");
-            ImGui.TableSetupColumn("Path Count");
             ImGui.TableSetupColumn("Actions");
             ImGui.TableHeadersRow();
 
-            foreach (var (name, count) in pathList.PathLists.ToList()) {
+            foreach (var name in pathList.PathLists.ToList()) {
                 ImGui.PushID(name);
                 ImGui.TableNextRow();
 
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(name);
-
-                ImGui.TableNextColumn();
-                ImGui.TextUnformatted(count.ToString());
 
                 ImGui.TableNextColumn();
                 if (ImGui.Button("Delete")) pathList.DeletePathList(name);

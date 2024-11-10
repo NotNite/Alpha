@@ -27,24 +27,32 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
     public readonly Dictionary<Dat, List<uint>> Folders = new();
     public readonly Dictionary<string, Directory> Directories = new();
     public readonly Dictionary<Category, Dictionary<uint, List<File>>> UnknownFiles = new();
+    private readonly object processLock = new();
 
     public void SetGameData(AlphaGameData gameData) {
         logger.LogInformation("Processing path lists with game data {GameData}", gameData.GamePath);
         Task.Run(() => {
             try {
-                this.LoadPathLists();
-                this.ProcessPathLists(gameData);
+                lock (this.processLock) {
+                    this.Clear();
+                    this.LoadPathLists();
+                    this.ProcessPathLists(gameData);
+                }
             } catch (Exception e) {
                 logger.LogError(e, "Failed to process path lists");
             }
         });
     }
 
-    public void Dispose() {
+    public void Clear() {
         this.Files.Clear();
         this.Folders.Clear();
         this.Directories.Clear();
         this.UnknownFiles.Clear();
+    }
+
+    public void Dispose() {
+        this.Clear();
     }
 
     public void ProcessPathLists(AlphaGameData gameData) {

@@ -3,8 +3,6 @@ using System.Reflection;
 using Alpha.Game;
 using Alpha.Services;
 using Hexa.NET.ImGui;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Serilog;
 
 namespace Alpha.Gui;
@@ -14,7 +12,7 @@ public abstract class Window {
     public GuiService.GuiScene Scene = GuiService.GuiScene.Main;
     public bool IsOpen;
     public Vector2 MaxSize = new(float.MaxValue, float.MaxValue);
-    public Vector2 MinSize = new(0, 0);
+    public Vector2 MinSize = new(100, 100);
     public Vector2? InitialSize;
     public AlphaGameData? GameData;
     public int Priority = 0;

@@ -4,10 +4,19 @@ using Serilog;
 
 namespace Alpha.Services;
 
-public class PathListService(ILogger<PathListService> logger) {
+public class PathListService {
     private const string PathListsDirectory = "pathlists";
-    public Dictionary<string, uint> PathLists = new();
+    public readonly List<string> PathLists = new();
     public bool IsDownloading;
+
+    private readonly ILogger<PathListService> logger;
+
+    public PathListService(ILogger<PathListService> logger) {
+        this.logger = logger;
+        foreach (var path in this.GetPathListFiles()) {
+            this.PathLists.Add(Path.GetFileName(path));
+        }
+    }
 
     public async Task DownloadResLogger(bool currentOnly) {
         this.IsDownloading = true;
@@ -17,7 +26,7 @@ public class PathListService(ILogger<PathListService> logger) {
             var url = $"https://rl2.perchbird.dev/download/export/{filename}";
 
             using var client = new HttpClient();
-            var req = await client.GetStreamAsync(url);
+            await using var req = await client.GetStreamAsync(url);
             await using var gzip = new GZipStream(req, CompressionMode.Decompress);
             using var reader = new StreamReader(gzip);
 
@@ -35,6 +44,7 @@ public class PathListService(ILogger<PathListService> logger) {
                 i++;
             }
 
+            if (!this.PathLists.Contains(filenameOutput)) this.PathLists.Add(filenameOutput);
             Log.Information("Downloaded {PathCount} paths to {PathFile}", i, outputFile);
         } finally {
             this.IsDownloading = false;
@@ -50,14 +60,19 @@ public class PathListService(ILogger<PathListService> logger) {
         }
     }
 
-    public IEnumerable<string> LoadPathLists() {
+    public IEnumerable<string> GetPathListFiles() {
         var pathDir = Path.Combine(Program.AppDir, PathListsDirectory);
         if (!Directory.Exists(pathDir)) Directory.CreateDirectory(pathDir);
 
         foreach (var path in Directory.EnumerateFiles(pathDir)) {
-                using var reader = new StreamReader(path);
-                reader.ReadLine(); // skip header
+            yield return Path.GetFullPath(path);
+        }
+    }
 
+    public IEnumerable<string> LoadPathLists() {
+        foreach (var path in this.GetPathListFiles()) {
+            using var reader = new StreamReader(path);
+            reader.ReadLine(); // skip header
 
             while (!reader.EndOfStream) {
                 var line = reader.ReadLine()!.Trim();
