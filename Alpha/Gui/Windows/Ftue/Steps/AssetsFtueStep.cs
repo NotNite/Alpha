@@ -3,7 +3,7 @@ using Hexa.NET.ImGui;
 
 namespace Alpha.Gui.Windows.Ftue.Steps;
 
-public class AssetsFtueStep(PathService path) : FtueStep {
+public class AssetsFtueStep(PathListService pathList) : FtueStep {
     public override bool IsLocked => false;
 
     public override void Draw() {
@@ -11,7 +11,7 @@ public class AssetsFtueStep(PathService path) : FtueStep {
             "Alpha makes use of several networked services that provide information about the game client, including Excel schemas and path lists.");
         ImGui.TextWrapped("You can download these assets manually, or Alpha can get them for you.");
 
-        Components.DrawPathLists(path);
+        Components.DrawPathLists(pathList);
         // TODO: Excel schemas
     }
 }

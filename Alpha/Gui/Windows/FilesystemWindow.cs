@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Alpha.Game;
 using Alpha.Services;
 using Alpha.Utils;
 using Hexa.NET.ImGui;
@@ -10,7 +11,7 @@ using NativeFileDialog.Extended;
 namespace Alpha.Gui.Windows;
 
 [Window("Filesystem")]
-public class FilesystemWindow : Window, IDisposable {
+public class FilesystemWindow : Window {
     public (FileResource, PathService.File)? SelectedFile;
     public FileResource? File;
 
@@ -19,29 +20,27 @@ public class FilesystemWindow : Window, IDisposable {
     private readonly List<string> visibleRootCategories = [..PathService.RootCategories.Keys];
     private float sidebarWidth = 300f;
 
-    private readonly GameDataService gameData;
+    private readonly GameDataService gameDataService;
     private readonly GuiService gui;
     private readonly PathService pathService;
     private readonly ILogger<FilesystemWindow> logger;
 
     public FilesystemWindow(
-        GameDataService gameData,
+        GameDataService gameDataService,
+        AlphaGameData gameData,
         GuiService gui,
         PathService pathService,
         ILogger<FilesystemWindow> logger
     ) {
-        this.gameData = gameData;
+        this.gameDataService = gameDataService;
+        this.GameData = gameData;
         this.gui = gui;
         this.pathService = pathService;
         this.logger = logger;
 
-        this.gameData.OnGameDataChanged += this.GameDataChanged;
+        this.pathService.SetGameData(this.GameData);
 
         this.InitialSize = new Vector2(800, 600);
-    }
-
-    public void Dispose() {
-        this.gameData.OnGameDataChanged -= this.GameDataChanged;
     }
 
     private void GameDataChanged() {
@@ -50,7 +49,7 @@ public class FilesystemWindow : Window, IDisposable {
     }
 
     protected override void Draw() {
-        if (this.gameData.GameData is null) {
+        if (this.GameData is null) {
             ImGui.TextUnformatted("No game data loaded.");
             return;
         }
@@ -69,7 +68,15 @@ public class FilesystemWindow : Window, IDisposable {
     }
 
     private void DrawSidebar() {
-        ImGui.SetNextItemWidth(this.sidebarWidth);
+        if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
+            this.GameData = newGameData;
+            this.pathService.SetGameData(this.GameData);
+            this.GameDataChanged();
+        }
+
+        ImGui.SameLine();
+
+        ImGui.SetNextItemWidth(this.sidebarWidth - ImGui.GetCursorPosY());
         if (ImGui.InputText("##FilesystemWindow_Filter", ref this.filter, 1024, ImGuiInputTextFlags.EnterReturnsTrue)) {
             if (this.filter.Length > 0) {
                 this.filteredDirectories.Clear();
@@ -204,11 +211,13 @@ public class FilesystemWindow : Window, IDisposable {
 
     public void Open(PathService.File file) {
         try {
-            FileResource? resource;
-            if (file.Path?.EndsWith("tex") == true) {
-                resource = this.pathService.GetFile<TexFile>(file);
-            } else {
-                resource = this.pathService.GetFile<FileResource>(file);
+            FileResource? resource = null;
+            if (this.GameData != null) {
+                if (file.Path?.EndsWith("tex") == true) {
+                    resource = this.pathService.GetFile<TexFile>(this.GameData, file);
+                } else {
+                    resource = this.pathService.GetFile<FileResource>(this.GameData, file);
+                }
             }
 
             if (resource is null) throw new Exception("File resource is null");

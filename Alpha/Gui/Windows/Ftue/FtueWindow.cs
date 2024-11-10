@@ -13,14 +13,14 @@ public class FtueWindow : Window {
     private GuiService gui;
     private Config config;
 
-    public FtueWindow(GuiService gui, Config config, GameDataService gameData, PathService path) {
+    public FtueWindow(GuiService gui, Config config, GameDataService gameData, PathListService pathList) {
         this.gui = gui;
         this.config = config;
 
         this.steps = [
             new IntroFtueStep(),
             new GameFtueStep(this.config, gameData),
-            new AssetsFtueStep(path),
+            new AssetsFtueStep(pathList),
             new OutroFtueStep()
         ];
 

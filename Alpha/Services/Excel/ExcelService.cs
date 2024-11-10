@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Alpha.Game;
 using Alpha.Gui.Windows;
 using Alpha.Services.Excel.Cells;
 using Alpha.Services.Excel.SaintCoinach;
@@ -7,13 +8,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Alpha.Services.Excel;
 
-public class ExcelService(GameDataService gameData, WindowManagerService windowManager, ILogger<ExcelService> logger)
+public class ExcelService(WindowManagerService windowManager, ILogger<ExcelService> logger)
     : IDisposable {
+    public AlphaGameData? GameData;
     public readonly Dictionary<string, AlphaSheet?> SheetsCache = new();
     public readonly Dictionary<string, SheetDefinition?> SheetDefinitions = new();
-    public string[] Sheets => (gameData.GameData?.Excel.SheetNames.ToArray() ?? [])
-        .OrderBy(s => s)
-        .ToArray();
+    public string[] Sheets => (GameData?.GameData.Excel.SheetNames.ToArray()
+                                      .OrderBy(s => s)
+                                      .ToArray()) ?? [];
 
     private readonly HttpClient httpClient = new();
 
@@ -21,10 +23,16 @@ public class ExcelService(GameDataService gameData, WindowManagerService windowM
         this.httpClient.Dispose();
     }
 
+    public void SetGameData(AlphaGameData gameData) {
+        this.GameData = gameData;
+        this.SheetsCache.Clear();
+        this.SheetDefinitions.Clear();
+    }
+
     public AlphaSheet? GetSheet(string name, bool skipCache = false) {
         if (this.SheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
-        var rawSheet = gameData.GameData?.Excel.GetSheet<RawRow>(name: name);
+        var rawSheet = this.GameData?.GameData.Excel.GetSheet<RawRow>(name: name);
         sheet = rawSheet is not null ? new AlphaSheet(rawSheet, name) : null;
         if (skipCache) return sheet;
         this.SheetsCache[name] = sheet;

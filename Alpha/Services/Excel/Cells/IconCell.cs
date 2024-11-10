@@ -20,6 +20,7 @@ public class IconCell : Cell {
     private Config config;
     private uint id;
     private string? loadFailureStr;
+    private bool fetchedTex;
     private string rowColStr;
 
     [SetsRequiredMembers]
@@ -30,6 +31,7 @@ public class IconCell : Cell {
         this.rowColStr = $"{this.Row}_{this.Column}";
 
         this.config = Program.Host.Services.GetRequiredService<Config>();
+        this.gui = Program.Host.Services.GetRequiredService<GuiService>();
 
         try {
             this.id = Convert.ToUInt32(this.Data);
@@ -37,21 +39,27 @@ public class IconCell : Cell {
             this.loadFailureStr = "(couldn't load icon)";
             return;
         }
-
-        var gameData = Program.Host.Services.GetRequiredService<GameDataService>();
-        this.texFile = gameData.GetIcon(this.id);
-
-        if (this.texFile is not null) {
-            this.gui = Program.Host.Services.GetRequiredService<GuiService>();
-        } else {
-            this.loadFailureStr = $"(couldn't load icon {this.id})";
-        }
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (this.texFile is null) {
+        if (this.loadFailureStr is not null) {
             ImGui.BeginDisabled();
             ImGui.TextUnformatted(this.loadFailureStr);
+            ImGui.EndDisabled();
+            return;
+        } else if (!this.fetchedTex) {
+            this.fetchedTex = true;
+            Task.Run(() => {
+                try {
+                    this.texFile = window.GameData!.GetIcon(this.id);
+                } catch {
+                    this.loadFailureStr = $"(couldn't load icon {this.id})";
+                }
+            });
+            return;
+        } else if (this.texFile is null) {
+            ImGui.BeginDisabled();
+            ImGui.TextUnformatted($"(loading icon {this.id}...)");
             ImGui.EndDisabled();
             return;
         }

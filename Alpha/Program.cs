@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Alpha.Game;
 using Alpha.Gui.Windows;
 using Alpha.Gui.Windows.Ftue;
 using Alpha.Services;
@@ -36,21 +37,22 @@ public class Program {
 
         builder.Services.AddSingletonHostedService<GuiService>();
         builder.Services.AddSingletonHostedService<WindowManagerService>();
-        builder.Services.AddSingleton<GameDataService>();
-        builder.Services.AddSingleton<PathService>();
-        builder.Services.AddSingleton<ExcelService>();
+        builder.Services.AddSingletonHostedService<GameDataService>();
+        builder.Services.AddSingleton<PathListService>();
+
+        builder.Services.AddScoped<PathService>();
+        builder.Services.AddScoped<ExcelService>();
+        builder.Services.AddScoped<AlphaGameData>(p =>
+            p.GetRequiredService<GameDataService>().GameDatas.First().Value);
 
         builder.Services.AddScoped<FtueWindow>();
         builder.Services.AddScoped<ExcelWindow>();
         builder.Services.AddScoped<SettingsWindow>();
         builder.Services.AddScoped<FilesystemWindow>();
 
-        Log.Information("Alpha is starting, please wait... {Version}", Assembly.GetExecutingAssembly().GetName().Version);
+        Log.Information("Alpha is starting, please wait... {Version}",
+            Assembly.GetExecutingAssembly().GetName().Version);
         Host = builder.Build();
-
-        // Could use a hosted service here but I am lazy
-        Host.Services.GetRequiredService<GameDataService>();
-        Host.Services.GetRequiredService<PathService>();
 
         Host.Start();
         Host.WaitForShutdown();

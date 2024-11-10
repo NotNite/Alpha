@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Lumina.Excel;
 
-namespace Alpha.Services;
+namespace Alpha.Services.Excel;
 
 [method: SetsRequiredMembers]
 public record AlphaSheet(ExcelSheet<RawRow> Sheet, string Name) {

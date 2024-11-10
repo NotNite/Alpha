@@ -1,14 +1,12 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Reflection;
+using Alpha.Game;
 using Alpha.Services;
 using Alpha.Services.Excel;
 using Alpha.Services.Excel.Cells;
 using Alpha.Utils;
 using Hexa.NET.ImGui;
 using Lumina;
-using Lumina.Data;
-using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.Extensions.Logging;
@@ -17,7 +15,7 @@ using Serilog;
 namespace Alpha.Gui.Windows;
 
 [Window("Excel")]
-public class ExcelWindow : Window, IDisposable {
+public class ExcelWindow : Window {
     private AlphaSheet? selectedSheet;
 
     private string sidebarFilter = string.Empty;
@@ -37,34 +35,34 @@ public class ExcelWindow : Window, IDisposable {
     private readonly Dictionary<AlphaSheet, Dictionary<(int, int), CachedCell>> cellCache = new();
 
     private CancellationTokenSource? scriptToken;
-    private CancellationTokenSource? sidebarToken;
     private string? scriptError;
 
+    private readonly GameDataService gameDataService;
     private readonly ExcelService excel;
     private readonly Config config;
-    private readonly GameDataService gameData;
     private readonly ILogger<ExcelWindow> logger;
 
-    public ExcelWindow(ExcelService excel, Config config, GameDataService gameData, ILogger<ExcelWindow> logger) {
+    public ExcelWindow(
+        GameDataService gameDataService, ExcelService excel, Config config, AlphaGameData gameData,
+        ILogger<ExcelWindow> logger
+    ) {
+        this.gameDataService = gameDataService;
         this.excel = excel;
         this.config = config;
-        this.gameData = gameData;
+        this.GameData = gameData;
         this.logger = logger;
-        this.gameData.OnGameDataChanged += this.GameDataChanged;
-
+        this.excel.GameData = gameData;
         this.InitialSize = new Vector2(800, 600);
-    }
-
-    public void Dispose() {
-        this.gameData.OnGameDataChanged -= this.GameDataChanged;
     }
 
     private void GameDataChanged() {
         this.selectedSheet = null;
         this.filteredSheets = null;
         this.filteredRows = null;
-        this.cellCache.Clear();
+        this.ResolveSidebarFilter();
+
         this.queuedOpen = null;
+        this.cellCache.Clear();
         this.highlightRow = null;
         this.tempScroll = null;
         this.painted = false;
@@ -100,8 +98,18 @@ public class ExcelWindow : Window, IDisposable {
 
     private void DrawSidebar() {
         var temp = ImGui.GetCursorPosY();
+
+        if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
+            this.logger.LogDebug("Game data changed to {NewGameData}", newGameData.GamePath);
+            this.GameData = newGameData;
+            this.excel.SetGameData(newGameData);
+            this.GameDataChanged();
+        }
+
+        ImGui.SameLine();
+
         {
-            ImGui.SetNextItemWidth(this.sidebarWidth);
+            ImGui.SetNextItemWidth(this.sidebarWidth - ImGui.GetCursorPosY());
 
             // TODO: full text search
 
@@ -312,7 +320,7 @@ public class ExcelWindow : Window, IDisposable {
         // GameData.GetExcelSheet<T>();
         var getExcelSheet = typeof(GameData).GetMethods().FirstOrDefault(x => x.Name == "GetExcelSheet");
         var genericMethod = sheetRow is not null ? getExcelSheet?.MakeGenericMethod(sheetRow) : null;
-        var sheetInstance = genericMethod?.Invoke(this.gameData.GameData, [null, null]);
+        var sheetInstance = genericMethod?.Invoke(this.GameData?.GameData, [null, null]);
 
         var ct = new CancellationTokenSource();
         Task.Run(async () => {
@@ -474,7 +482,7 @@ public class ExcelWindow : Window, IDisposable {
                 ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, newBg);
             }
 
-            if (shouldPopColor) ImGui.PopStyleColor(2);
+            if (shouldPopColor && highlighted) ImGui.PopStyleColor(2);
             if (highlighted) shouldPopColor = true;
 
             var str = row.Value.RowId.ToString();

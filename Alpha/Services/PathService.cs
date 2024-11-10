@@ -1,14 +1,13 @@
 ﻿using System.Diagnostics;
-using System.IO.Compression;
+using Alpha.Game;
 using Alpha.Utils;
 using Lumina.Data;
 using Microsoft.Extensions.Logging;
 
 namespace Alpha.Services;
 
-public class PathService : IDisposable {
-    private const string PathListsDirectory = "pathlists";
-    public static Dictionary<string, byte> RootCategories = new() {
+public class PathService(ILogger<PathService> logger, PathListService pathList) : IDisposable {
+    public static readonly Dictionary<string, byte> RootCategories = new() {
         {"common", 0},
         {"bgcommon", 1},
         {"bg", 2},
@@ -24,36 +23,34 @@ public class PathService : IDisposable {
         {"music", 0xC}
     };
 
-    public readonly Dictionary<string, int> PathLists = new();
     public readonly Dictionary<Dat, Dictionary<ulong, File>> Files = new();
     public readonly Dictionary<Dat, List<uint>> Folders = new();
     public readonly Dictionary<string, Directory> Directories = new();
     public readonly Dictionary<Category, Dictionary<uint, List<File>>> UnknownFiles = new();
 
-    private readonly ILogger<PathService> logger;
-    private readonly GameDataService gameData;
-
-    public bool IsDownloading => this.isDownloading;
-    private bool isDownloading;
-
-    public PathService(ILogger<PathService> logger, GameDataService gameData) {
-        this.logger = logger;
-        this.gameData = gameData;
-
-        this.LoadPathLists();
-        this.ProcessPathLists();
-        this.gameData.OnGameDataChanged += this.ProcessPathLists;
+    public void SetGameData(AlphaGameData gameData) {
+        logger.LogInformation("Processing path lists with game data {GameData}", gameData.GamePath);
+        Task.Run(() => {
+            try {
+                this.LoadPathLists();
+                this.ProcessPathLists(gameData);
+            } catch (Exception e) {
+                logger.LogError(e, "Failed to process path lists");
+            }
+        });
     }
 
     public void Dispose() {
-        this.gameData.OnGameDataChanged -= this.ProcessPathLists;
+        this.Files.Clear();
+        this.Folders.Clear();
+        this.Directories.Clear();
+        this.UnknownFiles.Clear();
     }
 
-    public void ProcessPathLists() {
-        if (this.gameData.GameData is null) return;
+    public void ProcessPathLists(AlphaGameData gameData) {
         var stopwatch = Stopwatch.StartNew();
 
-        foreach (var repo in this.gameData.GameData.Repositories.Values) {
+        foreach (var repo in gameData.GameData.Repositories.Values) {
             foreach (var cat in repo.Categories.Values.SelectMany(c => c)) {
                 if (cat.IndexHashTableEntries is null) continue;
 
@@ -76,7 +73,7 @@ public class PathService : IDisposable {
         }
 
         var count = this.Files.Values.Sum(f => f.Count);
-        this.logger.LogInformation("Processed {FileCount} files in {Time}", count, stopwatch.Elapsed);
+        logger.LogInformation("Processed {FileCount} files in {Time}", count, stopwatch.Elapsed);
     }
 
     public Directory GetDirectory(
@@ -126,86 +123,23 @@ public class PathService : IDisposable {
     private void LoadPathLists() {
         var stopwatch = Stopwatch.StartNew();
 
-        var pathDir = Path.Combine(Program.AppDir, PathListsDirectory);
-        if (!System.IO.Directory.Exists(pathDir)) System.IO.Directory.CreateDirectory(pathDir);
-
-        foreach (var path in System.IO.Directory.EnumerateFiles(pathDir)) {
-            try {
-                var i = 0;
-                using var reader = new StreamReader(path);
-                reader.ReadLine(); // skip header
-                while (!reader.EndOfStream) {
-                    var line = reader.ReadLine()!.Trim();
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    var file = this.ParseResLogger(line);
-                    if (!this.Files.ContainsKey(file.Dat!)) this.Files[file.Dat!] = new();
-                    this.Files[file.Dat!][file.Hash] = file;
-                    i++;
-                }
-
-                this.PathLists[Path.GetFileName(path)] = i;
-            } catch (Exception e) {
-                this.logger.LogError(e, "Failed to load paths from {PathFile}", path);
-            }
+        foreach (var path in pathList.LoadPathLists()) {
+            var file = this.ParseResLogger(path);
+            if (!this.Files.ContainsKey(file.Dat!)) this.Files[file.Dat!] = new();
+            this.Files[file.Dat!][file.Hash] = file;
         }
 
-        this.logger.LogInformation("Loaded {PathCount} paths in {Time}", this.Files.Values.Sum(f => f.Count),
+        logger.LogInformation("Loaded {PathCount} paths in {Time}", this.Files.Values.Sum(f => f.Count),
             stopwatch.Elapsed);
     }
 
-    public async Task DownloadResLogger(bool currentOnly) {
-        this.isDownloading = true;
-        try {
-            var filename = currentOnly ? "CurrentPathListWithHashes.gz" : "PathListWithHashes.gz";
-            var url = $"https://rl2.perchbird.dev/download/export/{filename}";
-
-            using var client = new HttpClient();
-            var req = await client.GetStreamAsync(url);
-            using var gzip = new GZipStream(req, CompressionMode.Decompress);
-            using var reader = new StreamReader(gzip);
-
-            var filenameOutput = currentOnly ? "reslogger-current.csv" : "reslogger.csv";
-            var outputFile = Path.Combine(Program.AppDir, PathListsDirectory, filenameOutput);
-            if (System.IO.File.Exists(outputFile)) System.IO.File.Delete(outputFile);
-
-            var i = 0;
-            using var writer = new StreamWriter(outputFile);
-            reader.ReadLine(); // skip header
-            while (!reader.EndOfStream) {
-                var line = reader.ReadLine()!.Trim();
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                writer.WriteLine(line);
-
-                var file = this.ParseResLogger(line);
-                if (!this.Files.ContainsKey(file.Dat!)) this.Files[file.Dat!] = new();
-                this.Files[file.Dat!][file.Hash] = file;
-
-                i++;
-            }
-
-            this.logger.LogInformation("Downloaded {PathCount} paths to {PathFile}", i, outputFile);
-            this.PathLists[Path.GetFileName(outputFile)] = i;
-        } finally {
-            this.isDownloading = false;
-        }
-    }
-
-    public void DeletePathList(string name) {
-        var path = Path.Combine(Program.AppDir, PathListsDirectory, name);
-        if (System.IO.File.Exists(path)) {
-            System.IO.File.Delete(path);
-            this.PathLists.Remove(name);
-            this.logger.LogInformation("Deleted path list {PathFile}", name);
-        }
-    }
-
-    public T? GetFile<T>(File file) where T : FileResource {
+    public T? GetFile<T>(AlphaGameData gameData, File file) where T : FileResource {
         if (file.Path != null) {
-            return this.gameData.GameData!.GetFile<T>(file.Path);
+            return gameData.GameData!.GetFile<T>(file.Path);
         }
 
         if (file.Dat is null) return null;
-        foreach (var repo in this.gameData.GameData!.Repositories.Values) {
+        foreach (var repo in gameData.GameData!.Repositories.Values) {
             foreach (var cat in repo.Categories.Values.SelectMany(c => c)) {
                 if (cat.IndexHashTableEntries is null) continue;
                 if (cat.CategoryId != file.Dat.Category.Id || cat.Expansion != file.Dat.Category.Expansion)

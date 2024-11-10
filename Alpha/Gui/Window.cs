@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Reflection;
+using Alpha.Game;
 using Alpha.Services;
 using Hexa.NET.ImGui;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,7 @@ public abstract class Window {
     public Vector2 MaxSize = new(float.MaxValue, float.MaxValue);
     public Vector2 MinSize = new(0, 0);
     public Vector2? InitialSize;
+    public AlphaGameData? GameData;
     public int Priority = 0;
 
     public readonly string Name;
@@ -35,11 +37,11 @@ public abstract class Window {
                 try {
                     this.PreDraw();
                 } catch (Exception e) {
-                    Log.Error("Error in PreDraw for window {Name}: {e}", this.Name, e);
+                    Log.Error(e, "Error in PreDraw for window {Name}", this.Name);
                 }
 
                 ImGui.SetNextWindowSizeConstraints(this.MinSize, this.MaxSize);
-                ImGui.SetNextWindowSize(this.InitialSize ?? this.MinSize, ImGuiCond.FirstUseEver);
+                ImGui.SetNextWindowSize(this.InitialSize ?? this.MinSize, ImGuiCond.Appearing);
                 if (ImGui.Begin(this.Name + "##" + this.Id, ref this.IsOpen, this.Flags)) {
                     try {
                         this.Draw();

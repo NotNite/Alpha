@@ -2,25 +2,18 @@
 using Alpha.Game;
 using Lumina;
 using Lumina.Data.Files;
+using Lumina.Data.Structs;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Environment = System.Environment;
 
 namespace Alpha.Services;
 
-public class GameDataService {
-    public GameData? GameData;
-    public event Action? OnGameDataChanged;
+public class GameDataService : IHostedService {
+    public Dictionary<string, AlphaGameData> GameDatas = new();
 
-    public string? CurrentGamePath => this.config.CurrentGamePath;
-    public GameInstallationInfo? CurrentGamePathInfo => this.config.CurrentGamePath is not null
-                                                            ? this.GamePathInfo[this.config.CurrentGamePath]
-                                                            : null;
-
-    public readonly Dictionary<string, GameInstallationInfo> GamePathInfo = new();
-
-    private Config config;
-    private ILogger<GameDataService> logger;
+    private readonly Config config;
+    private readonly ILogger<GameDataService> logger;
 
     public GameDataService(Config config, ILogger<GameDataService> logger) {
         this.config = config;
@@ -28,56 +21,49 @@ public class GameDataService {
 
         foreach (var path in this.config.GamePaths.ToList()) {
             try {
-                this.GamePathInfo[path] = new GameInstallationInfo(path);
+                this.AddGamePath(path);
             } catch (Exception e) {
                 this.logger.LogError(e, "Failed to load game path info");
                 this.config.GamePaths.Remove(path);
-                if (this.config.CurrentGamePath == path) this.config.CurrentGamePath = null;
             }
         }
-
-        this.RecreateGameData(true);
 
         this.config.Save();
     }
 
-    public void RecreateGameData(bool init = false) {
-        if (this.config.CurrentGamePath is not null) {
-            try {
-                var newGameData = new GameData(Path.Combine(this.config.CurrentGamePath, "sqpack"));
-                this.GameData?.Dispose();
-                this.GameData = newGameData;
-                if (!init) this.OnGameDataChanged?.Invoke();
-            } catch (Exception e) {
-                this.logger.LogError(e, "Failed to load game data");
-            }
-        }
-    }
-
     public void AddGamePath(string path) {
-        if (this.config.GamePaths.Contains(path)) return;
-
         try {
             var info = new GameInstallationInfo(path);
-            this.GamePathInfo[path] = info;
-            this.config.GamePaths.Add(info.GamePath);
-            this.SetGamePath(info.GamePath);
+            var platform = PlatformId.Win32;
+
+            // Use known exe names to determine platform
+            if (File.Exists(Path.Combine(info.GamePath, "ffxivgame.exe"))) {
+                platform = PlatformId.Lys;
+            } else if (File.Exists(Path.Combine(info.GamePath, "ffxivgame.elf"))) {
+                platform = PlatformId.PS4;
+            }
+
+            var options = new LuminaOptions {
+                CurrentPlatform = platform
+            };
+            var gameData = new AlphaGameData {
+                GameData = new GameData(Path.Combine(info.GamePath, "sqpack"), options),
+                GamePath = info.GamePath,
+                GameInstallationInfo = info
+            };
+            this.GameDatas.Add(info.GamePath, gameData);
+            if (!this.config.GamePaths.Contains(info.GamePath)) {
+                this.config.GamePaths.Add(info.GamePath);
+                this.config.Save();
+            }
         } catch (Exception e) {
             this.logger.LogError(e, "Failed to add game path");
         }
     }
 
-    public void SetGamePath(string path) {
-        if (!this.config.GamePaths.Contains(path)) return;
-        this.config.CurrentGamePath = path;
-        this.config.Save();
-        this.RecreateGameData();
-    }
-
     public void RemoveGamePath(string path) {
-        this.GamePathInfo.Remove(path);
+        this.GameDatas.Remove(path);
         this.config.GamePaths.Remove(path);
-        if (this.config.CurrentGamePath == path) this.config.CurrentGamePath = null;
         this.config.Save();
     }
 
@@ -139,24 +125,6 @@ public class GameDataService {
         return null;
     }
 
-    public TexFile? GetIcon(uint id) {
-        var nqPath = $"ui/icon/{id / 1000 * 1000:000000}/{id:000000}.tex";
-        var hqPath = $"ui/icon/{id / 1000 * 1000:000000}/{id:000000}_hr1.tex";
-        var langPath = $"ui/icon/{id / 1000 * 1000:000000}/en/{id:000000}.tex"; // FIXME hardcoded lang
-        string[] tryOrder = config.PreferHighQuality ? [hqPath, nqPath, langPath] : [nqPath, hqPath, langPath];
-
-        string? usedPath = null;
-        try {
-            foreach (var p in tryOrder) {
-                if (this.GameData?.FileExists(p) == true) {
-                    usedPath = p;
-                    break;
-                }
-            }
-        } catch {
-            // Lumina likes to throw errors on FileExists for some reason, so let's just ignore it
-        }
-
-        return usedPath is null ? null : this.GameData?.GetFile<TexFile>(usedPath);
-    }
+    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

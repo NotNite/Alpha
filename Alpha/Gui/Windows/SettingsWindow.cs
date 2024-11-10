@@ -5,7 +5,7 @@ using Hexa.NET.ImGui;
 namespace Alpha.Gui.Windows;
 
 [Window("Settings", SingleInstance = true)]
-public class SettingsWindow(GameDataService gameData, PathService path, Config config) : Window {
+public class SettingsWindow(GameDataService gameData, PathListService pathList, Config config) : Window {
     protected override void Draw() {
         if (ImGui.BeginTabBar("##SettingsTabBar")) {
             this.DrawTab("Game Paths", this.DrawGamePathsTab);
@@ -33,7 +33,7 @@ public class SettingsWindow(GameDataService gameData, PathService path, Config c
     }
 
     private void DrawPathListsTab() {
-        Components.DrawPathLists(path);
+        Components.DrawPathLists(pathList);
     }
 
     private void DrawExcelTab() {
@@ -41,7 +41,6 @@ public class SettingsWindow(GameDataService gameData, PathService path, Config c
         if (ImGui.Checkbox("Sort by offsets", ref config.SortByOffsets)) anyChanged = true;
         if (ImGui.Checkbox("Always show offsets", ref config.AlwaysShowOffsets)) anyChanged = true;
         if (ImGui.Checkbox("Highlight links", ref config.HighlightLinks)) anyChanged = true;
-        if (ImGui.Checkbox("Prefer high quality images", ref config.PreferHighQuality)) anyChanged = true;
         if (ImGui.Checkbox("Keep images at line height", ref config.LineHeightImages)) anyChanged = true;
         if (anyChanged) config.Save();
     }

@@ -24,14 +24,12 @@ public class Config : IDisposable {
 
     // Initial setup
     public List<string> GamePaths = new();
-    public string? CurrentGamePath;
     public bool FtueComplete;
 
     // Excel
     public bool SortByOffsets;
     public bool AlwaysShowOffsets;
     public bool HighlightLinks = true;
-    public bool PreferHighQuality = true;
     public bool LineHeightImages;
 
     public static Config Load() {
@@ -51,9 +49,6 @@ public class Config : IDisposable {
 
     public void Fixup() {
         this.GamePaths = this.GamePaths.Where(dir => Directory.Exists(Path.Combine(dir, "sqpack"))).ToList();
-        if (this.CurrentGamePath is not null && !this.GamePaths.Contains(this.CurrentGamePath)) {
-            this.CurrentGamePath = null;
-        }
     }
 
     public void Save() {

@@ -43,8 +43,7 @@ public class DefaultCell : Cell {
             if (this.fileExists is null) {
                 if (this.str is not null) {
                     try {
-                        var gameData = Program.Host.Services.GetRequiredService<GameDataService>();
-                        this.fileExists = gameData.GameData?.FileExists(this.str) ?? false;
+                        this.fileExists = window.GameData?.GameData.FileExists(this.str) ?? false;
                     } catch {
                         this.fileExists = false;
                     }

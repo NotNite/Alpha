@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Alpha.Game;
 using Alpha.Services;
 using Alpha.Utils;
 using Hexa.NET.ImGui;
@@ -9,8 +10,6 @@ namespace Alpha.Gui;
 
 public class Components {
     public static void DrawGamePaths(GameDataService gameData) {
-        ImGui.TextUnformatted("Current game path: " + (gameData.CurrentGamePath ?? "None"));
-
         if (ImGui.Button("Add game path")) {
             var dir = NFD.PickFolder(gameData.TryGamePaths());
             if (!string.IsNullOrEmpty(dir)) gameData.AddGamePath(dir);
@@ -22,7 +21,7 @@ public class Components {
             ImGui.TableSetupColumn("Actions");
             ImGui.TableHeadersRow();
 
-            foreach (var (path, info) in gameData.GamePathInfo.ToList()) {
+            foreach (var (path, info) in gameData.GameDatas.ToList()) {
                 ImGui.PushID(path);
                 ImGui.TableNextRow();
 
@@ -30,16 +29,9 @@ public class Components {
                 ImGui.TextUnformatted(path);
 
                 ImGui.TableNextColumn();
-                ImGui.TextUnformatted(info.GameVersion ?? "Unknown");
+                ImGui.TextUnformatted(info.GameInstallationInfo.GameVersion ?? "Unknown");
 
                 ImGui.TableNextColumn();
-
-                var isCurrent = gameData.CurrentGamePath == path;
-                if (isCurrent) ImGui.BeginDisabled();
-                if (ImGui.Button("Set as current")) gameData.SetGamePath(path);
-                if (isCurrent) ImGui.EndDisabled();
-
-                ImGui.SameLine();
 
                 if (ImGui.Button("Remove")) gameData.RemoveGamePath(path);
                 ImGui.PopID();
@@ -78,13 +70,13 @@ public class Components {
         if (ImGui.Button("Buy NotNite a Pepsi")) Util.OpenLink("https://notnite.com/givememoney");
     }
 
-    public static void DrawPathLists(PathService path) {
-        var disabled = path.IsDownloading;
+    public static void DrawPathLists(PathListService pathList) {
+        var disabled = pathList.IsDownloading;
         if (disabled) ImGui.BeginDisabled();
         if (ImGui.Button("Download path list"))
             Task.Run(async () => {
                 try {
-                    await path.DownloadResLogger(true);
+                    await pathList.DownloadResLogger(true);
                 } catch (Exception e) {
                     Log.Error(e, "Failed to download path list");
                 }
@@ -97,7 +89,7 @@ public class Components {
             ImGui.TableSetupColumn("Actions");
             ImGui.TableHeadersRow();
 
-            foreach (var (name, count) in path.PathLists.ToList()) {
+            foreach (var (name, count) in pathList.PathLists.ToList()) {
                 ImGui.PushID(name);
                 ImGui.TableNextRow();
 
@@ -108,7 +100,7 @@ public class Components {
                 ImGui.TextUnformatted(count.ToString());
 
                 ImGui.TableNextColumn();
-                if (ImGui.Button("Delete")) path.DeletePathList(name);
+                if (ImGui.Button("Delete")) pathList.DeletePathList(name);
                 ImGui.PopID();
             }
 
@@ -125,5 +117,26 @@ public class Components {
             var mouseDelta = ImGui.GetIO().MouseDelta.X;
             width += mouseDelta;
         }
+    }
+
+    public static AlphaGameData? DrawGameDataPicker(GameDataService gameData, AlphaGameData current) {
+        AlphaGameData? ret = null;
+
+        const string contextMenuId = "##gameDataPickerContextMenu";
+
+        if (ImGui.Button("#")) ImGui.OpenPopup(contextMenuId);
+
+        if (ImGui.BeginPopup(contextMenuId)) {
+            var options = gameData.GameDatas.Values.ToList();
+            var names = options.Select(x => x.GameInstallationInfo.GameVersion ?? x.GamePath).ToArray();
+            var currentIdx = options.IndexOf(current);
+            if (ImGui.Combo("##gameDataPicker", ref currentIdx, names, names.Length)) {
+                ret = options[currentIdx];
+            }
+
+            ImGui.EndPopup();
+        }
+
+        return ret;
     }
 }
