@@ -12,7 +12,7 @@ namespace Alpha.Gui.Windows;
 
 [Window("Filesystem")]
 public class FilesystemWindow : Window, IDisposable {
-    public (FileResource, PathService.File)? SelectedFile;
+    public (FileResource, PathService.File, string)? SelectedFile;
     public FileResource? File;
 
     private string filter = string.Empty;
@@ -72,6 +72,11 @@ public class FilesystemWindow : Window, IDisposable {
     }
 
     private void DrawSidebar() {
+        if (!this.pathService.IsReady) {
+            ImGui.TextUnformatted("Processing path lists...");
+            return;
+        }
+
         if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
             this.GameData = newGameData;
             this.pathService.SetGameData(this.GameData);
@@ -85,13 +90,13 @@ public class FilesystemWindow : Window, IDisposable {
             if (this.filter.Length > 0) {
                 this.filteredDirectories.Clear();
                 this.visibleRootCategories.Clear();
-                foreach (var files in this.pathService.Files.Values) {
-                    foreach (var file in files.Values) {
-                        var path = file.Path ?? Util.PrintFileHash(file.Hash);
-                        if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
-                            var dir = path.AsSpan(0, path.LastIndexOf('/')).ToString();
-                            if (!this.filteredDirectories.Contains(dir)) this.filteredDirectories.Add(dir);
-                            if (dir.Split('/').FirstOrDefault() is { } root &&
+
+                foreach (var (folder, file) in this.pathService.GetAllFiles(this.pathService.RootDirectory)) {
+                    var path = folder + "/" + (file.FileName ?? Util.PrintFileHash(file.FileHash));
+                    if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
+                        if (!this.filteredDirectories.Contains(folder)) {
+                            this.filteredDirectories.Add(folder);
+                            if (folder.Split('/').FirstOrDefault() is { } root &&
                                 !this.visibleRootCategories.Contains(root))
                                 this.visibleRootCategories.Add(root);
                         }
@@ -106,10 +111,12 @@ public class FilesystemWindow : Window, IDisposable {
 
         if (ImGui.BeginChild("##FilesystemWindow_Sidebar", ImGui.GetContentRegionAvail() with {X = this.sidebarWidth},
                 ImGuiChildFlags.Borders)) {
-            foreach (var name in this.visibleRootCategories) {
-                var id = PathService.RootCategories[name];
-                if (ImGui.TreeNode(name + "/")) {
-                    this.DrawFolder(name, new PathService.Category(id, 0), 0);
+            foreach (var folder in this.pathService.RootDirectory.Folders
+                         .Values
+                         .OrderBy(x => PathService.RootCategories[x.Name])) {
+                if (!this.visibleRootCategories.Contains(folder.Name)) continue;
+                if (ImGui.TreeNode(folder.Name + "/")) {
+                    this.DrawFolder(folder.Name, folder);
                     ImGui.TreePop();
                 }
             }
@@ -118,12 +125,25 @@ public class FilesystemWindow : Window, IDisposable {
         }
     }
 
+    private string GetPath(PathService.File file) {
+        if (file.Path != null) return file.Path;
+
+        var folder = file.FolderName ??
+                     (file.Dat != null
+                          ? this.pathService.FolderNames.GetValueOrDefault(file.Dat)
+                              ?.GetValueOrDefault(file.FolderHash)
+                          : null)
+                     ?? Util.PrintFileHash(file.FolderHash);
+
+        var name = file.FileName ?? Util.PrintFileHash(file.FileHash);
+        return $"{folder}/{name}";
+    }
+
     private void DrawContent() {
         if (this.SelectedFile is null) return;
 
         if (ImGui.BeginChild("##FilesystemWindow_Content", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders)) {
-            var (resource, file) = this.SelectedFile.Value;
-            var filePath = file.Path ?? Util.PrintFileHash(file.Hash);
+            var (resource, file, filePath) = this.SelectedFile.Value;
             ImGui.TextUnformatted(filePath);
             ImGui.TextUnformatted($"{resource.Data.Length} bytes");
 
@@ -153,61 +173,31 @@ public class FilesystemWindow : Window, IDisposable {
         }
     }
 
-    private void DrawFolder(string path, PathService.Category cat, int depth) {
+    private void DrawFolder(string path, PathService.Folder folder) {
         var filterExists = !string.IsNullOrWhiteSpace(this.filter);
-        var dir = this.pathService.GetDirectory(cat, path, depth == 0);
 
-        var folders = new Dictionary<string, List<PathService.File>?>();
-        foreach (var folder in dir.Folders) folders[folder] = null;
+        var folders = folder.Folders.Values.OrderBy(x => x.Name.StartsWith('~')).ThenBy(x => x.Name);
+        var files = folder.Files.Values
+            .Select(x => (File: x, Filename: x.FileName ?? Util.PrintFileHash(x.FileHash)))
+            .OrderBy(x => x.File.FileName is null)
+            .ThenBy(x => x.Filename);
 
-        if (depth == 0 || (cat.Expansion != 0 && depth == 1)) {
-            // Either the root of a cat (FFXIV files can be here) or the root of an expansion folder
-            var unk = this.pathService.GetUnknownFiles(cat);
-            foreach (var (folder, files) in unk) {
-                folders[Util.PrintFileHash(folder)] = files;
-            }
-        }
+        foreach (var childFolder in folders) {
+            if (filterExists && folder.Name != null &&
+                !this.filteredDirectories.Any(x => x.StartsWith(path + "/" + childFolder.Name))) continue;
 
-        foreach (var (folder, files) in folders
-                     .OrderBy(x => x.Key.StartsWith('~') ? 1 : 0)
-                     .ThenBy(x => x.Key)
-                ) {
-            if (filterExists && !this.filteredDirectories.Any(x => x.StartsWith(path + "/" + folder))) continue;
-
-            if (ImGui.TreeNode(folder + "/")) {
-                if (files != null) {
-                    foreach (var file in files) {
-                        if (filterExists) {
-                            var filePath = file.Path ?? Util.PrintFileHash(file.FileHash);
-                            if (!filePath.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
-                        }
-
-                        if (ImGui.Selectable(file.Name ?? Util.PrintFileHash(file.FileHash))) {
-                            this.Open(file);
-                        }
-                    }
-                }
-
-                if (depth == 0 && folder.StartsWith("ex") && int.TryParse(folder[2..], out var ex)) {
-                    this.DrawFolder(path + "/" + folder, cat with {Expansion = (byte) ex}, depth + 1);
-                } else {
-                    this.DrawFolder(path + "/" + folder, cat, depth + 1);
-                }
+            if (ImGui.TreeNode(childFolder.Name + "/")) {
+                this.DrawFolder(path + "/" + childFolder.Name, childFolder);
                 ImGui.TreePop();
             }
         }
 
-        foreach (var (file, name) in dir.Files
-                     .Select(x => (x, x.Name ?? Util.PrintFileHash(x.FileHash)))
-                     .OrderBy(x => x.Item2.StartsWith('~') ? 1 : 0)
-                     .ThenBy(x => x.Item2)
-                ) {
-            if (filterExists) {
-                var filePath = file.Path ?? Util.PrintFileHash(file.FileHash);
-                if (!filePath.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
+        foreach (var (file, filename) in files) {
+            if (filterExists && !this.GetPath(file).Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
+                continue;
             }
 
-            if (ImGui.Selectable(name)) {
+            if (ImGui.Selectable(filename)) {
                 this.Open(file);
             }
         }
@@ -225,7 +215,7 @@ public class FilesystemWindow : Window, IDisposable {
             }
 
             if (resource is null) throw new Exception("File resource is null");
-            this.SelectedFile = (resource, file);
+            this.SelectedFile = (resource, file, this.GetPath(file));
         } catch (Exception e) {
             this.logger.LogError(e, "Failed to open file");
         }
