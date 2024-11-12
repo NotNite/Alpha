@@ -17,12 +17,11 @@ public record AlphaGameData {
 
         string? usedPath = null;
         try {
-            foreach (var p in tryOrder) {
+            foreach (var p in tryOrder)
                 if (this.GameData?.FileExists(p) == true) {
                     usedPath = p;
                     break;
                 }
-            }
         } catch {
             // Lumina likes to throw errors on FileExists for some reason, so let's just ignore it
         }

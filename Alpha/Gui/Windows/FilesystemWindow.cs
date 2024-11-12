@@ -150,18 +150,14 @@ public class FilesystemWindow : Window, IDisposable {
             if (ImGui.Button("Save file")) {
                 var filename = Path.GetFileName(filePath);
                 var dialogResult = NFD.SaveDialog(string.Empty, filename);
-                if (!string.IsNullOrWhiteSpace(dialogResult)) {
-                    System.IO.File.WriteAllBytes(dialogResult, resource.Data);
-                }
+                if (!string.IsNullOrWhiteSpace(dialogResult)) System.IO.File.WriteAllBytes(dialogResult, resource.Data);
             }
 
             ImGui.SameLine();
 
             // TODO: Excel
             if (resource is TexFile texFile) {
-                if (ImGui.Button("Export as .png")) {
-                    Util.ExportAsPng(texFile);
-                }
+                if (ImGui.Button("Export as .png")) Util.ExportAsPng(texFile);
 
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 size = Util.ClampImageSize(size, ImGui.GetContentRegionAvail());
@@ -193,13 +189,9 @@ public class FilesystemWindow : Window, IDisposable {
         }
 
         foreach (var (file, filename) in files) {
-            if (filterExists && !this.GetPath(file).Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
-                continue;
-            }
+            if (filterExists && !this.GetPath(file).Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
 
-            if (ImGui.Selectable(filename)) {
-                this.Open(file);
-            }
+            if (ImGui.Selectable(filename)) this.Open(file);
         }
     }
 
@@ -207,11 +199,10 @@ public class FilesystemWindow : Window, IDisposable {
         try {
             FileResource? resource = null;
             if (this.GameData != null) {
-                if (file.Path?.EndsWith("tex") == true) {
+                if (file.Path?.EndsWith("tex") == true)
                     resource = this.pathService.GetFile<TexFile>(this.GameData, file);
-                } else {
+                else
                     resource = this.pathService.GetFile<FileResource>(this.GameData, file);
-                }
             }
 
             if (resource is null) throw new Exception("File resource is null");

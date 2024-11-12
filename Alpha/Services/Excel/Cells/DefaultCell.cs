@@ -15,8 +15,9 @@ public class DefaultCell : Cell {
     private string rowColStr;
 
     [SetsRequiredMembers]
-    public DefaultCell(int row, int column, object? data) {
+    public DefaultCell(uint row, ushort? subrow, uint column, object? data) {
         this.Row = row;
+        this.Subrow = subrow;
         this.Column = column;
         this.Data = data;
         this.rowColStr = $"{this.Row}_{this.Column}";
@@ -29,9 +30,9 @@ public class DefaultCell : Cell {
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (this.str is not null) {
+        if (this.str is not null)
             ImGui.TextUnformatted(this.str);
-        } else {
+        else {
             ImGui.BeginDisabled();
             ImGui.TextUnformatted(Null);
             ImGui.EndDisabled();
@@ -56,9 +57,7 @@ public class DefaultCell : Cell {
                 filesystemWindow.Open(new PathService.File(this.str!));
             }
 
-            if (ImGui.MenuItem(Copy)) {
-                ImGui.SetClipboardText(str);
-            }
+            if (ImGui.MenuItem(Copy)) ImGui.SetClipboardText(this.str);
 
             ImGui.EndPopup();
         }

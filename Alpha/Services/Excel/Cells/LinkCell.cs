@@ -9,14 +9,14 @@ namespace Alpha.Services.Excel.Cells;
 public class LinkCell : Cell {
     public const string OpenInNewWindow = "Open in new window";
 
-    private AlphaSheet target;
-    private int targetRow;
-    private int targetCol;
+    private IAlphaSheet target;
+    private uint targetRow;
+    private uint targetCol;
     private string text;
     private string rowColStr;
 
     [SetsRequiredMembers]
-    public LinkCell(int row, int column, object? data, AlphaSheet target, int targetCol) {
+    public LinkCell(uint row, uint column, object? data, IAlphaSheet target, uint targetCol) {
         this.Row = row;
         this.Column = column;
         this.Data = data;
@@ -25,7 +25,7 @@ public class LinkCell : Cell {
         this.rowColStr = $"{this.Row}_{this.Column}";
 
         try {
-            this.targetRow = Convert.ToInt32(this.Data);
+            this.targetRow = Convert.ToUInt32(this.Data);
         } catch {
             // ignored
         }
@@ -35,17 +35,17 @@ public class LinkCell : Cell {
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
         if (inAnotherDraw && Util.IsKeyDown(ImGuiKey.ModAlt)) {
-            window.DrawCell(this.target, this.targetRow, this.targetCol, inAnotherDraw: true);
+            window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
             return;
         }
 
         if (ImGui.Button(this.text)) {
-            window.OpenSheet(this.target, targetRow);
+            window.OpenSheet(this.target, ((uint) this.targetRow, null));
         }
 
         if (ImGui.BeginPopupContextItem(this.rowColStr)) {
             if (ImGui.MenuItem(OpenInNewWindow)) {
-                window.GetExcelService().OpenNewWindow(this.target, this.targetRow);
+                window.GetExcelService().OpenNewWindow(this.target, ((uint) this.targetRow, null));
             }
 
             ImGui.EndPopup();
@@ -53,7 +53,7 @@ public class LinkCell : Cell {
 
         if (ImGui.IsItemHovered()) {
             ImGui.BeginTooltip();
-            window.DrawCell(this.target, this.targetRow, this.targetCol, inAnotherDraw: true);
+            window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
             ImGui.EndTooltip();
         }
     }

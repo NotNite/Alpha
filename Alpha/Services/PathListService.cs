@@ -13,9 +13,7 @@ public class PathListService {
 
     public PathListService(ILogger<PathListService> logger) {
         this.logger = logger;
-        foreach (var path in this.GetPathListFiles()) {
-            this.PathLists.Add(Path.GetFileName(path));
-        }
+        foreach (var path in this.GetPathListFiles()) this.PathLists.Add(Path.GetFileName(path));
     }
 
     public async Task DownloadResLogger(bool currentOnly) {
@@ -56,7 +54,7 @@ public class PathListService {
         if (File.Exists(path)) {
             File.Delete(path);
             this.PathLists.Remove(name);
-            logger.LogInformation("Deleted path list {PathFile}", name);
+            this.logger.LogInformation("Deleted path list {PathFile}", name);
         }
     }
 
@@ -64,9 +62,7 @@ public class PathListService {
         var pathDir = Path.Combine(Program.AppDir, PathListsDirectory);
         if (!Directory.Exists(pathDir)) Directory.CreateDirectory(pathDir);
 
-        foreach (var path in Directory.EnumerateFiles(pathDir)) {
-            yield return Path.GetFullPath(path);
-        }
+        foreach (var path in Directory.EnumerateFiles(pathDir)) yield return Path.GetFullPath(path);
     }
 
     public IEnumerable<string> LoadPathLists() {

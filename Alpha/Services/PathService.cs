@@ -58,7 +58,7 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
     }
 
     public void Clear() {
-        this.RootDirectory = new("root", 0);
+        this.RootDirectory = new Folder("root", 0);
         this.Files.Clear();
         this.FolderNames.Clear();
     }
@@ -70,52 +70,45 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
     private void LoadPathLists() {
         foreach (var path in pathList.LoadPathLists()) {
             var file = this.ParseResLogger(path);
-            var folder = this.GetFolder(file.FolderName!, mkdir: true)!;
+            var folder = this.GetFolder(file.FolderName!, true)!;
             folder.Files[file.FileHash] = file;
 
-            if (!this.Files.TryGetValue(file.Dat!, out var files)) {
-                this.Files[file.Dat!] = files = new();
-            }
+            if (!this.Files.TryGetValue(file.Dat!, out var files))
+                this.Files[file.Dat!] = files = new Dictionary<ulong, File>();
             files[file.Hash] = file;
         }
     }
 
     private void LoadGameFiles(AlphaGameData gameData) {
-        foreach (var repo in gameData.GameData.Repositories.Values) {
-            foreach (var cat in repo.Categories.Values.SelectMany(c => c)) {
-                if (cat.IndexHashTableEntries is null) continue;
+        foreach (var repo in gameData.GameData.Repositories.Values)
+        foreach (var cat in repo.Categories.Values.SelectMany(c => c)) {
+            if (cat.IndexHashTableEntries is null) continue;
 
-                var category = new Category(cat.CategoryId, (byte) cat.Expansion);
-                var dats = new Dictionary<byte, Dat>();
-                foreach (var (hash, data) in cat.IndexHashTableEntries) {
-                    if (!dats.TryGetValue(data.DataFileId, out var dat)) {
-                        dats[data.DataFileId] = dat = new Dat(category, data.DataFileId);
-                    }
+            var category = new Category(cat.CategoryId, (byte) cat.Expansion);
+            var dats = new Dictionary<byte, Dat>();
+            foreach (var (hash, data) in cat.IndexHashTableEntries) {
+                if (!dats.TryGetValue(data.DataFileId, out var dat))
+                    dats[data.DataFileId] = dat = new Dat(category, data.DataFileId);
 
-                    var file = new File(dat, hash);
-                    if (!this.Files.TryGetValue(file.Dat!, out var files)) {
-                        this.Files[file.Dat!] = files = new();
-                    }
-                    if (files.ContainsKey(file.Hash)) continue;
+                var file = new File(dat, hash);
+                if (!this.Files.TryGetValue(file.Dat!, out var files))
+                    this.Files[file.Dat!] = files = new Dictionary<ulong, File>();
+                if (files.ContainsKey(file.Hash)) continue;
 
-                    if (!ReverseRootCategories.TryGetValue(cat.CategoryId, out var rootCategory)) {
-                        continue;
-                    }
+                if (!ReverseRootCategories.TryGetValue(cat.CategoryId, out var rootCategory)) continue;
 
-                    var folderName = rootCategory + "/"
-                                                  + (HasSubfolder.Contains(rootCategory)
-                                                         ? cat.Expansion == 0 ? "ffxiv/" : "ex" + cat.Expansion + "/"
-                                                         : "")
-                                                  + Util.PrintFileHash(file.FolderHash);
-                    if (this.FolderNames.TryGetValue(dat, out var names) &&
-                        names.TryGetValue(file.FolderHash, out var newName)) {
-                        folderName = newName;
-                    }
+                var folderName = rootCategory + "/"
+                                              + (HasSubfolder.Contains(rootCategory)
+                                                     ? cat.Expansion == 0 ? "ffxiv/" : "ex" + cat.Expansion + "/"
+                                                     : "")
+                                              + Util.PrintFileHash(file.FolderHash);
+                if (this.FolderNames.TryGetValue(dat, out var names) &&
+                    names.TryGetValue(file.FolderHash, out var newName))
+                    folderName = newName;
 
-                    var folder = this.GetFolder(folderName, mkdir: true)!;
-                    folder.Files[file.FileHash] = file;
-                    files[file.Hash] = file;
-                }
+                var folder = this.GetFolder(folderName, true)!;
+                folder.Files[file.FileHash] = file;
+                files[file.Hash] = file;
             }
         }
     }
@@ -147,31 +140,24 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
     }
 
     public IEnumerable<(string, File)> GetAllFiles(Folder folder, string path = "") {
-        foreach (var file in folder.Files) {
-            yield return (path, file.Value);
-        }
+        foreach (var file in folder.Files) yield return (path, file.Value);
 
         foreach (var subFolder in folder.Folders) {
             var newPath = string.IsNullOrEmpty(path) ? subFolder.Value.Name : path + "/" + subFolder.Value.Name;
-            foreach (var file in this.GetAllFiles(subFolder.Value, newPath)) {
-                yield return file;
-            }
+            foreach (var file in this.GetAllFiles(subFolder.Value, newPath)) yield return file;
         }
     }
 
     public T? GetFile<T>(AlphaGameData gameData, File file) where T : FileResource {
-        if (file.Path != null) {
-            return gameData.GameData.GetFile<T>(file.Path);
-        }
+        if (file.Path != null) return gameData.GameData.GetFile<T>(file.Path);
 
         if (file.Dat is null) return null;
-        foreach (var repo in gameData.GameData.Repositories.Values) {
-            foreach (var cat in repo.Categories.Values.SelectMany(c => c)) {
-                if (cat.IndexHashTableEntries is null) continue;
-                if (cat.CategoryId != file.Dat.Category.Id || cat.Expansion != file.Dat.Category.Expansion)
-                    continue;
-                return cat.GetFile<T>(file.Hash);
-            }
+        foreach (var repo in gameData.GameData.Repositories.Values)
+        foreach (var cat in repo.Categories.Values.SelectMany(c => c)) {
+            if (cat.IndexHashTableEntries is null) continue;
+            if (cat.CategoryId != file.Dat.Category.Id || cat.Expansion != file.Dat.Category.Expansion)
+                continue;
+            return cat.GetFile<T>(file.Hash);
         }
 
         return null;
@@ -188,9 +174,8 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
 
         var file = new File(path, dat);
 
-        if (!this.FolderNames.TryGetValue(dat, out var names)) {
-            this.FolderNames[dat] = names = new();
-        }
+        if (!this.FolderNames.TryGetValue(dat, out var names))
+            this.FolderNames[dat] = names = new Dictionary<uint, string>();
         names.TryAdd(file.FolderHash, file.FolderName!);
 
         return file;
@@ -208,7 +193,7 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
     }
 
     public record File(Dat? Dat, ulong Hash, string? FolderName = null, string? FileName = null) {
-        public string? Path = (FolderName != null && FileName != null) ? FolderName + FileName : null;
+        public string? Path = FolderName != null && FileName != null ? FolderName + FileName : null;
         public uint FolderHash = (uint) (Hash >> 32);
         public uint FileHash = (uint) Hash;
 

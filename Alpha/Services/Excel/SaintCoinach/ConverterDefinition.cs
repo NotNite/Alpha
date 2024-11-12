@@ -50,14 +50,14 @@ public class ComplexLinkConverterDefinition : ConverterDefinition {
 
     private bool CheckWhenClause(
         ExcelService excel,
-        AlphaSheet sheet,
-        int rowId,
+        IAlphaSheet sheet,
+        uint rowId,
         WhenClause when
     ) {
         if (!excel.SheetDefinitions.TryGetValue(sheet.Name, out var def)) return false;
         if (def is null) return false;
 
-        for (var i = 0; i < sheet.Sheet.Columns.Count; i++) {
+        for (var i = 0u; i < sheet.Columns.Count; i++) {
             var colName = def.GetNameForColumn(i);
             if (colName == when.Key) {
                 var value = sheet.GetRow((uint) rowId)?.ReadColumn(i);
@@ -71,17 +71,16 @@ public class ComplexLinkConverterDefinition : ConverterDefinition {
 
     public IEnumerable<ComplexLinkResolution> ResolveComplexLink(
         ExcelService excel,
-        AlphaSheet sheet,
-        int rowId,
-        int targetRowId
+        IAlphaSheet sheet,
+        uint rowId,
+        uint targetRowId
     ) {
         var ret = new List<ComplexLinkResolution>();
 
         foreach (var link in this.Links) {
             if (link.When is not null
-                && !this.CheckWhenClause(excel, sheet, rowId, link.When)) {
+                && !this.CheckWhenClause(excel, sheet, rowId, link.When))
                 continue;
-            }
 
             if (link.Project is not null) {
                 // I don't know how the fuck this works perch save me
@@ -100,6 +99,6 @@ public class ComplexLinkConverterDefinition : ConverterDefinition {
 
     public class ComplexLinkResolution {
         public string Link;
-        public int TargetRow;
+        public uint TargetRow;
     }
 }

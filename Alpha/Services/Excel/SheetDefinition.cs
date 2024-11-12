@@ -4,9 +4,9 @@ using Lumina.Excel;
 namespace Alpha.Services.Excel;
 
 public abstract class SheetDefinition {
-    public abstract int? DefaultColumn { get; }
+    public abstract uint? DefaultColumn { get; }
 
-    public abstract string? GetNameForColumn(int index);
-    public abstract int? GetColumnForName(string name);
-    public abstract Cell? GetCell(ExcelService excel, AlphaSheet sheet, int row, int column, object? data);
+    public abstract string? GetNameForColumn(uint index);
+    public abstract uint? GetColumnForName(string name);
+    public abstract Cell? GetCell(ExcelService excel, IAlphaSheet sheet, uint row, ushort? subrow, uint column, object? data);
 }

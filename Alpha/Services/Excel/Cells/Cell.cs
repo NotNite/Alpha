@@ -3,8 +3,9 @@
 namespace Alpha.Services.Excel.Cells;
 
 public abstract class Cell {
-    public required int Row;
-    public required int Column;
+    public required uint Row;
+    public ushort? Subrow;
+    public required uint Column;
     public object? Data;
 
     public abstract void Draw(

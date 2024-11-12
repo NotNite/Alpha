@@ -11,7 +11,7 @@ namespace Alpha.Services.Excel;
 public class ExcelService(WindowManagerService windowManager, ILogger<ExcelService> logger)
     : IDisposable {
     public AlphaGameData? GameData;
-    public readonly Dictionary<string, AlphaSheet?> SheetsCache = new();
+    public readonly Dictionary<string, IAlphaSheet?> SheetsCache = new();
     public readonly Dictionary<string, SheetDefinition?> SheetDefinitions = new();
     public string[] Sheets => (GameData?.GameData.Excel.SheetNames.ToArray()
                                       .OrderBy(s => s)
@@ -29,11 +29,17 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         this.SheetDefinitions.Clear();
     }
 
-    public AlphaSheet? GetSheet(string name, bool skipCache = false) {
+    public IAlphaSheet? GetSheet(string name, bool skipCache = false) {
         if (this.SheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
-        var rawSheet = this.GameData?.GameData.Excel.GetSheet<RawRow>(name: name);
-        sheet = rawSheet is not null ? new AlphaSheet(rawSheet, name) : null;
+        var rawSheet = this.GameData?.GameData.Excel.GetRawSheet(name: name);
+        if (rawSheet is not null) {
+            if (rawSheet is RawSubrowExcelSheet) {
+                sheet = new AlphaSubrowSheet(this.GameData!.GameData.Excel.GetSubrowSheet<RawSubrow>(name: name), name);
+            } else {
+                sheet = new AlphaSheet(this.GameData!.GameData.Excel.GetSheet<RawRow>(name: name), name);
+            }
+        }
         if (skipCache) return sheet;
         this.SheetsCache[name] = sheet;
 
@@ -44,23 +50,21 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         return sheet;
     }
 
-    public void OpenNewWindow(string? sheet = null, int? scrollTo = null) {
-        var window = windowManager.CreateWindow<ExcelWindow>();
-        if (sheet is not null) window.OpenSheet(sheet, scrollTo);
-    }
-
-    public void OpenNewWindow(AlphaSheet? sheet = null, int? row = null) {
+    public void OpenNewWindow(string? sheet = null, (uint Row, ushort? Subrow)? row = null) {
         var window = windowManager.CreateWindow<ExcelWindow>();
         if (sheet is not null) window.OpenSheet(sheet, row);
     }
 
-    public Cell GetCell(AlphaSheet sheet, int row, int column, object? data) {
+    public void OpenNewWindow(IAlphaSheet? sheet = null, (uint Row, ushort? Subrow)? row = null) =>
+        this.OpenNewWindow(sheet?.Name, row);
+
+    public Cell GetCell(IAlphaSheet sheet, uint row, ushort? subrow, uint column, object? data) {
         var sheetDefinition = this.SheetDefinitions[sheet.Name];
-        var cell = sheetDefinition?.GetCell(this, sheet, row, column, data);
-        return cell ?? new DefaultCell(row, column, data);
+        var cell = sheetDefinition?.GetCell(this, sheet, row, subrow, column, data);
+        return cell ?? new DefaultCell(row, subrow, column, data);
     }
 
-    public int? GetDefaultColumnForSheet(string sheetName) => this.SheetDefinitions.TryGetValue(sheetName, out var def)
+    public uint? GetDefaultColumnForSheet(string sheetName) => this.SheetDefinitions.TryGetValue(sheetName, out var def)
                                                                   ? def?.DefaultColumn
                                                                   : null;
 

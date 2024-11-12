@@ -24,8 +24,9 @@ public class IconCell : Cell {
     private string rowColStr;
 
     [SetsRequiredMembers]
-    public IconCell(int row, int column, object? data) {
+    public IconCell(uint row, ushort? subrow, uint column, object? data) {
         this.Row = row;
+        this.Subrow = subrow;
         this.Column = column;
         this.Data = data;
         this.rowColStr = $"{this.Row}_{this.Column}";
@@ -65,7 +66,7 @@ public class IconCell : Cell {
         }
 
         var icon = this.gui!.GetTexture(this.texFile);
-        var lineSize = this.ScaleSize(icon.Size, config.LineHeightImages
+        var lineSize = this.ScaleSize(icon.Size, this.config.LineHeightImages
                                                      ? ImGui.GetTextLineHeight() * 2
                                                      : 512);
 
@@ -73,16 +74,15 @@ public class IconCell : Cell {
         if (inAnotherDraw) {
             var shouldShowMagnum = Util.IsKeyDown(ImGuiKey.ModAlt);
             if (shouldShowMagnum) {
-                var magnumSize = ScaleSize(icon.Size, maxY);
+                var magnumSize = this.ScaleSize(icon.Size, maxY);
                 icon.Draw(magnumSize);
-            } else {
+            } else
                 icon.Draw(lineSize);
-            }
         } else {
             icon.Draw(lineSize);
             var shouldShowMagnum = Util.IsKeyDown(ImGuiKey.ModAlt) && (ImGui.IsItemHovered() || inAnotherDraw);
             if (shouldShowMagnum) {
-                var magnumSize = ScaleSize(icon.Size, maxY);
+                var magnumSize = this.ScaleSize(icon.Size, maxY);
                 ImGui.BeginTooltip();
                 icon.Draw(magnumSize);
                 ImGui.EndTooltip();
@@ -93,13 +93,9 @@ public class IconCell : Cell {
             var path = this.texFile.FilePath;
             ImGui.MenuItem(path, false);
 
-            if (ImGui.MenuItem(CopyIconId)) {
-                ImGui.SetClipboardText(this.id.ToString());
-            }
+            if (ImGui.MenuItem(CopyIconId)) ImGui.SetClipboardText(this.id.ToString());
 
-            if (ImGui.MenuItem(CopyIconPath)) {
-                ImGui.SetClipboardText(path);
-            }
+            if (ImGui.MenuItem(CopyIconPath)) ImGui.SetClipboardText(path);
 
             if (ImGui.MenuItem(OpenInFilesystemBrowser)) {
                 var windowManager = Program.Host.Services.GetRequiredService<WindowManagerService>();
@@ -107,13 +103,9 @@ public class IconCell : Cell {
                 filesystemWindow.Open(new PathService.File(path));
             }
 
-            if (ImGui.MenuItem(SaveTex)) {
-                Util.ExportAsTex(this.texFile);
-            }
+            if (ImGui.MenuItem(SaveTex)) Util.ExportAsTex(this.texFile);
 
-            if (ImGui.MenuItem(SavePng)) {
-                Util.ExportAsPng(this.texFile);
-            }
+            if (ImGui.MenuItem(SavePng)) Util.ExportAsPng(this.texFile);
 
             ImGui.EndPopup();
         }

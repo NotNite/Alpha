@@ -9,10 +9,10 @@ namespace Alpha.Services.Excel.Cells;
 public class ComplexLinkCell : Cell {
     public const string OpenInNewWindow = "Open in new window";
 
-    private List<(AlphaSheet, int, int)> links;
+    private List<(IAlphaSheet, uint, ushort?, uint)> links;
 
     [SetsRequiredMembers]
-    public ComplexLinkCell(int row, int column, object? data, List<(AlphaSheet, int, int)> links) {
+    public ComplexLinkCell(uint row, ushort? subrow, uint column, object? data, List<(IAlphaSheet, uint, ushort?, uint)> links) {
         this.Row = row;
         this.Column = column;
         this.Data = data;
@@ -21,21 +21,22 @@ public class ComplexLinkCell : Cell {
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
         if (inAnotherDraw && Util.IsKeyDown(ImGuiKey.ModAlt)) {
-            foreach (var (sheet, row, col) in this.links) {
-                window.DrawCell(sheet, row, col, inAnotherDraw: true);
+            foreach (var (sheet, row, subrow, col) in this.links) {
+                window.DrawCell(sheet, row, subrow, col, inAnotherDraw: true);
             }
             return;
         }
 
-        foreach (var (sheet, row, col) in this.links) {
-            var text = $"{sheet}#{row}" + $"##{this.Row}_{this.Column}_{sheet.Name}_{row}";
+        foreach (var (sheet, row, subrow, col) in this.links) {
+            var rowStr = subrow is null ? row.ToString() : $"{row}.{subrow}";
+            var text = $"{sheet}#{rowStr}" + $"##{this.Row}_{this.Subrow}_{this.Column}_{sheet.Name}_{row}";
             if (ImGui.Button(text)) {
-                window.OpenSheet(sheet, row);
+                window.OpenSheet(sheet, ((uint) row, null));
             }
 
             if (ImGui.BeginPopupContextItem($"{this.Row}_{this.Column}_{sheet.Name}_{row}")) {
                 if (ImGui.MenuItem(OpenInNewWindow)) {
-                    window.GetExcelService().OpenNewWindow(sheet, row);
+                    window.GetExcelService().OpenNewWindow(sheet, ((uint) row, null));
                 }
 
                 ImGui.EndPopup();
@@ -43,7 +44,7 @@ public class ComplexLinkCell : Cell {
 
             if (ImGui.IsItemHovered()) {
                 ImGui.BeginTooltip();
-                window.DrawCell(sheet, row, col, inAnotherDraw: true);
+                window.DrawCell(sheet, row, subrow, col, inAnotherDraw: true);
                 ImGui.EndTooltip();
             }
         }

@@ -27,9 +27,11 @@ public class GroupColumnDefinition : ColumnDefinition {
 }
 
 // Really not a fan I had to do this, but I can't wrestle the polymorphism attributes into working
-class RowDefinitionJsonConverter : JsonConverter<ColumnDefinition> {
-    public override ColumnDefinition? Read(ref Utf8JsonReader reader, Type typeToConvert,
-        JsonSerializerOptions options) {
+internal class RowDefinitionJsonConverter : JsonConverter<ColumnDefinition> {
+    public override ColumnDefinition? Read(
+        ref Utf8JsonReader reader, Type typeToConvert,
+        JsonSerializerOptions options
+    ) {
         var jsonDocument = JsonDocument.ParseValue(ref reader);
         var type = jsonDocument.RootElement.TryGetProperty("type", out var prop) ? prop.GetString() : null;
 

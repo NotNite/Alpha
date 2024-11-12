@@ -16,23 +16,24 @@ namespace Alpha.Gui.Windows;
 
 [Window("Excel")]
 public class ExcelWindow : Window {
-    private AlphaSheet? selectedSheet;
+    private IAlphaSheet? selectedSheet;
 
     private string sidebarFilter = string.Empty;
     private List<string>? filteredSheets;
     private float sidebarWidth = 300f;
 
     private string contentFilter = string.Empty;
-    private List<uint>? filteredRows;
+    private List<(uint Row, ushort? Subrow)>? filteredRows;
     private CancellationTokenSource? filterCts;
 
-    private (string, int?)? queuedOpen;
-    private int? highlightRow;
-    private int? tempScroll;
+    private (string, (uint Row, ushort? Subrow)?)? queuedOpen;
+    private (uint Row, ushort? Subrow)? highlightRow;
+    private (uint Row, ushort? Subrow)? tempScroll;
     private bool painted;
     private float? itemHeight = 0;
 
-    private readonly Dictionary<AlphaSheet, Dictionary<(int, int), CachedCell>> cellCache = new();
+    private readonly Dictionary<IAlphaSheet, Dictionary<(uint, uint), CachedCell>> cellCache = new();
+    private readonly List<(uint Row, ushort? Subrow)> rowMap = new();
 
     private CancellationTokenSource? scriptToken;
     private string? scriptError;
@@ -63,6 +64,7 @@ public class ExcelWindow : Window {
 
         this.queuedOpen = null;
         this.cellCache.Clear();
+        this.rowMap.Clear();
         this.highlightRow = null;
         this.tempScroll = null;
         this.painted = false;
@@ -187,11 +189,12 @@ public class ExcelWindow : Window {
         }
     }
 
-    public void OpenSheet(string sheetName, int? scrollTo = null) {
+    public void OpenSheet(string sheetName, (uint Row, ushort? Subrow)? scrollTo = null) {
         this.queuedOpen = (sheetName, scrollTo);
     }
 
-    public void OpenSheet(AlphaSheet sheet, int? scrollTo = null) => this.OpenSheet(sheet.Name, scrollTo);
+    public void OpenSheet(IAlphaSheet sheet, (uint Row, ushort? Subrow)? scrollTo = null) =>
+        this.OpenSheet(sheet.Name, scrollTo);
 
     private void ProcessQueuedOpen() {
         var (sheetName, scrollTo) = this.queuedOpen!.Value;
@@ -200,7 +203,7 @@ public class ExcelWindow : Window {
         this.cellCache.Clear();
 
         this.highlightRow = scrollTo;
-        this.tempScroll = scrollTo ?? 0;
+        this.tempScroll = scrollTo ?? (0, null);
         this.painted = false;
 
         var sheet = this.excel.GetSheet(sheetName);
@@ -216,6 +219,11 @@ public class ExcelWindow : Window {
 
         this.contentFilter = string.Empty;
         this.ResolveContentFilter();
+
+        this.rowMap.Clear();
+        foreach (var row in this.selectedSheet.GetRows()) {
+            this.rowMap.Add((row.Row, row.Subrow));
+        }
     }
 
     private void ResolveSidebarFilter() {
@@ -273,26 +281,26 @@ public class ExcelWindow : Window {
     private void ContentFilterSimple(string filter) {
         Task.Run(() => {
             this.filteredRows = new();
-            var colCount = this.selectedSheet!.Sheet.Columns.Count;
+            var colCount = this.selectedSheet!.Columns.Count;
 
-            for (var i = 0u; i < this.selectedSheet.Sheet.Count; i++) {
+            for (var i = 0u; i < this.selectedSheet.Count; i++) {
                 if (this.filterCts?.Token.IsCancellationRequested == true) return;
 
                 var row = this.selectedSheet.GetRow(i);
                 if (row is null) continue;
 
-                var rowStr = row.Value.RowId.ToString();
+                var rowStr = row.Row.ToString();
                 if (rowStr.Contains(filter, StringComparison.CurrentCultureIgnoreCase)) {
-                    this.filteredRows!.Add(i);
+                    this.filteredRows!.Add((row.Row, row.Subrow));
                     continue;
                 }
 
-                for (var col = 0; col < colCount; col++) {
-                    var obj = row.Value.ReadColumn(col);
+                for (var col = 0u; col < colCount; col++) {
+                    var obj = row.ReadColumn(col);
                     var str = obj.ToString();
 
                     if (str?.ToLower().Contains(filter, StringComparison.CurrentCultureIgnoreCase) == true) {
-                        this.filteredRows!.Add(i);
+                        this.filteredRows!.Add((row.Row, row.Subrow));
                         break;
                     }
                 }
@@ -331,7 +339,7 @@ public class ExcelWindow : Window {
                 var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
                 expr.Compile(ct.Token);
 
-                for (var i = 0u; i < this.selectedSheet!.Sheet.Count; i++) {
+                for (var i = 0u; i < this.selectedSheet!.Count; i++) {
                     if (ct.IsCancellationRequested) {
                         this.logger.LogDebug("Filter script cancelled - aborting");
                         return;
@@ -343,7 +351,7 @@ public class ExcelWindow : Window {
                     async void SimpleEval() {
                         try {
                             var res = await expr.RunAsync(cancellationToken: ct.Token);
-                            if (res.ReturnValue) this.filteredRows?.Add(i);
+                            if (res.ReturnValue) this.filteredRows?.Add((row.Row, row.Subrow));
                         } catch (Exception e) {
                             this.scriptError = e.Message;
                         }
@@ -353,7 +361,7 @@ public class ExcelWindow : Window {
                         SimpleEval();
                     } else {
                         var getRow = sheetInstance?.GetType().GetMethod("GetRow", [typeof(uint)]);
-                        var instance = getRow?.Invoke(sheetInstance, [row.Value.RowId]);
+                        var instance = getRow?.Invoke(sheetInstance, [row.Row]);
 
                         // new ExcelScriptingGlobal<ExcelRow>(sheet, row);
                         var excelScriptingGlobal = typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow);
@@ -364,7 +372,7 @@ public class ExcelWindow : Window {
                             try {
                                 var res = await expr.RunAsync(globals, ct.Token);
                                 if (res.ReturnValue) {
-                                    this.filteredRows?.Add(i);
+                                    this.filteredRows?.Add((row.Row, row.Subrow));
                                 }
                             } catch (Exception e) {
                                 this.scriptError = e.Message;
@@ -393,8 +401,8 @@ public class ExcelWindow : Window {
             return;
         }
 
-        var rowCount = this.selectedSheet.Sheet.Count;
-        var colCount = this.selectedSheet.Sheet.Columns.Count;
+        var rowCount = this.selectedSheet.Count;
+        var colCount = this.selectedSheet.Columns.Count;
         colCount = Math.Min(colCount, 2048 - 1); // I think this is an ImGui limitation?
 
         const ImGuiTableFlags flags = ImGuiTableFlags.Borders
@@ -415,12 +423,12 @@ public class ExcelWindow : Window {
         ImGui.TableSetColumnIndex(0);
         ImGui.TableHeader("Row");
 
-        var colMappings = new int[colCount];
+        var colMappings = new uint[colCount];
         if (this.config.SortByOffsets) {
-            var colOffsets = new Dictionary<int, uint>();
+            var colOffsets = new Dictionary<uint, uint>();
 
-            for (var i = 0; i < colCount; i++) {
-                var col = this.selectedSheet.Sheet.Columns[i];
+            for (var i = 0u; i < colCount; i++) {
+                var col = this.selectedSheet.Columns[(int) i];
                 colOffsets[i] = col.Offset;
             }
 
@@ -430,14 +438,14 @@ public class ExcelWindow : Window {
 
             for (var i = 0; i < colCount; i++) colMappings[i] = colOffsets.ElementAt(i).Key;
         } else {
-            for (var i = 0; i < colCount; i++) colMappings[i] = i;
+            for (var i = 0u; i < colCount; i++) colMappings[i] = i;
         }
 
         for (var i = 0; i < colCount; i++) {
             var colId = colMappings[i];
             var colName = sheetDefinition?.GetNameForColumn(colId) ?? colId.ToString();
 
-            var col = this.selectedSheet.Sheet.Columns[colId];
+            var col = this.selectedSheet.Columns[(int) colId];
             var offset = col.Offset;
             var offsetStr = $"Offset: {offset} (0x{offset:X})\nIndex: {colId}\nData type: {col.Type.ToString()}";
 
@@ -460,13 +468,14 @@ public class ExcelWindow : Window {
         var newHeight = 0f;
         var shouldPopColor = false;
         foreach (var i in clipper.Rows) {
-            var rowId = i;
+            var rowData = this.rowMap[i];
             if (this.filteredRows is not null) {
-                rowId = (int) this.filteredRows[i];
+                rowData = this.filteredRows[i];
             }
+            var (rowId, subrowId) = rowData;
 
             // TODO: probably slow as hell, cache this
-            var row = this.selectedSheet.GetRow((uint) rowId);
+            var row = this.selectedSheet.GetRow(rowId, subrowId);
             if (row is null) {
                 ImGui.TableNextRow();
                 continue;
@@ -475,7 +484,10 @@ public class ExcelWindow : Window {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
 
-            var highlighted = this.highlightRow == rowId && this.config.HighlightLinks;
+            var highlighted = this.highlightRow is not null
+                              && this.highlightRow.Value.Row == rowId
+                              && this.highlightRow.Value.Subrow == subrowId
+                              && this.config.HighlightLinks;
             if (highlighted) {
                 var newBg = new Vector4(1f, 0.5f, 0f, 0.5f);
                 ImGui.PushStyleColor(ImGuiCol.TableRowBg, newBg);
@@ -485,7 +497,10 @@ public class ExcelWindow : Window {
             if (shouldPopColor && highlighted) ImGui.PopStyleColor(2);
             if (highlighted) shouldPopColor = true;
 
-            var str = row.Value.RowId.ToString();
+            var str = row.Row.ToString();
+            if (row.Subrow is not null) {
+                str += $".{row.Subrow}";
+            }
             ImGui.TextUnformatted(str);
             if (ImGui.BeginPopupContextItem($"##ExcelModule_Row_{rowId}")) {
                 if (ImGui.Selectable("Copy row ID")) {
@@ -500,7 +515,7 @@ public class ExcelWindow : Window {
             for (var col = 0; col < colCount; col++) {
                 var prev = ImGui.GetCursorPosY();
 
-                this.DrawCell(this.selectedSheet, rowId, colMappings[col]);
+                this.DrawCell(this.selectedSheet, rowId, subrowId, colMappings[col]);
 
                 var next = ImGui.GetCursorPosY();
                 if (this.itemHeight is not null) {
@@ -526,7 +541,8 @@ public class ExcelWindow : Window {
         // seems to crash if you scroll immediately, seems to do nothing if you scroll too little
         // stupid tick hack works for now lol
         if (this.tempScroll is not null && this.painted) {
-            ImGuiP.SetScrollY(this.tempScroll * this.itemHeight ?? 0);
+            var pos = this.rowMap.IndexOf(this.tempScroll.Value);
+            ImGuiP.SetScrollY(pos * this.itemHeight ?? 0);
             this.tempScroll = null;
         }
 
@@ -536,7 +552,7 @@ public class ExcelWindow : Window {
         this.painted = true;
     }
 
-    private Cell GetCell(AlphaSheet sheet, int rowId, int colId) {
+    private Cell GetCell(IAlphaSheet sheet, uint rowId, ushort? subrowId, uint colId) {
         if (!this.cellCache.TryGetValue(sheet, out var realCellCache)) {
             this.cellCache[sheet] = realCellCache = new();
         }
@@ -545,16 +561,16 @@ public class ExcelWindow : Window {
             return cachedCell.Value;
         }
 
-        var row = sheet.GetRow((uint) rowId);
+        var row = sheet.GetRow(rowId);
         var data = row?.ReadColumn(colId);
-        var cell = this.excel.GetCell(sheet, rowId, colId, data);
+        var cell = this.excel.GetCell(sheet, rowId, subrowId, colId, data);
         var cached = new CachedCell(cell);
         realCellCache[(rowId, colId)] = cached;
         return cached.Value;
     }
 
-    public void DrawCell(AlphaSheet sheet, int rowId, int colId, bool inAnotherDraw = false) {
-        var cell = this.GetCell(sheet, rowId, colId);
+    public void DrawCell(IAlphaSheet sheet, uint rowId, ushort? subrowId, uint colId, bool inAnotherDraw = false) {
+        var cell = this.GetCell(sheet, rowId, subrowId, colId);
         cell.Draw(this, inAnotherDraw);
     }
 
