@@ -29,7 +29,7 @@ public class ComplexLinkCell : Cell {
 
         foreach (var (sheet, row, subrow, col) in this.links) {
             var rowStr = subrow is null ? row.ToString() : $"{row}.{subrow}";
-            var text = $"{sheet}#{rowStr}" + $"##{this.Row}_{this.Subrow}_{this.Column}_{sheet.Name}_{row}";
+            var text = $"{sheet.Name}#{rowStr}" + $"##{this.Row}_{this.Subrow}_{this.Column}_{sheet.Name}_{row}";
             if (ImGui.Button(text)) {
                 window.OpenSheet(sheet, ((uint) row, null));
             }
