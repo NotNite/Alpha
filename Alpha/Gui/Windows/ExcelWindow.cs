@@ -101,12 +101,14 @@ public class ExcelWindow : Window {
     private void DrawSidebar() {
         var temp = ImGui.GetCursorPosY();
 
-        if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
-            this.logger.LogDebug("Game data changed to {NewGameData}", newGameData.GamePath);
-            this.GameData = newGameData;
-            this.excel.SetGameData(newGameData);
-            this.GameDataChanged();
-        }
+        Components.DrawFakeHamburger(() => {
+            if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
+                this.logger.LogDebug("Game data changed to {NewGameData}", newGameData.GamePath);
+                this.GameData = newGameData;
+                this.excel.SetGameData(newGameData);
+                this.GameDataChanged();
+            }
+        });
 
         ImGui.SameLine();
 
@@ -442,6 +444,7 @@ public class ExcelWindow : Window {
         }
 
         for (var i = 0; i < colCount; i++) {
+            ImGui.PushID(i);
             var colId = colMappings[i];
             var colName = sheetDefinition?.GetNameForColumn(colId) ?? colId.ToString();
 
@@ -459,6 +462,7 @@ public class ExcelWindow : Window {
                 ImGui.TextUnformatted(offsetStr);
                 ImGui.EndTooltip();
             }
+            ImGui.PopID();
         }
 
         var actualRowCount = this.filteredRows?.Count ?? (int) rowCount;

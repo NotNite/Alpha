@@ -18,6 +18,7 @@ public class FilesystemWindow : Window, IDisposable {
     private string filter = string.Empty;
     private readonly List<string> filteredDirectories = [];
     private readonly List<string> visibleRootCategories = [..PathService.RootCategories.Keys];
+    private readonly List<PathService.File> selectedFiles = new();
     private float sidebarWidth = 300f;
 
     private readonly GameDataService gameDataService;
@@ -77,11 +78,32 @@ public class FilesystemWindow : Window, IDisposable {
             return;
         }
 
-        if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
-            this.GameData = newGameData;
-            this.pathService.SetGameData(this.GameData);
-            this.GameDataChanged();
-        }
+        Components.DrawFakeHamburger(() => {
+            if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
+                this.GameData = newGameData;
+                this.pathService.SetGameData(this.GameData);
+                this.GameDataChanged();
+            }
+
+            var hasSelectedFiles = this.selectedFiles.Count > 0;
+            if (!hasSelectedFiles) ImGui.BeginDisabled();
+            if (ImGui.Button("Export selected files")) {
+                var dir = NFD.PickFolder(string.Empty);
+                if (!string.IsNullOrWhiteSpace(dir)) {
+                    foreach (var file in this.selectedFiles) {
+                        var resource = this.pathService.GetFile<FileResource>(this.GameData!, file);
+                        if (resource is null) continue;
+
+                        var path = Path.Combine(dir, this.GetPath(file));
+                        var dirPath = Path.GetDirectoryName(path)!;
+                        if (!Directory.Exists(dirPath)) Directory.CreateDirectory(dirPath);
+
+                        System.IO.File.WriteAllBytes(path, resource.Data);
+                    }
+                }
+            }
+            if (!hasSelectedFiles) ImGui.EndDisabled();
+        });
 
         ImGui.SameLine();
 
@@ -191,7 +213,18 @@ public class FilesystemWindow : Window, IDisposable {
         foreach (var (file, filename) in files) {
             if (filterExists && !this.GetPath(file).Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
 
-            if (ImGui.Selectable(filename)) this.Open(file);
+            var selected = this.SelectedFile?.Item2 == file || this.selectedFiles.Contains(file);
+            if (ImGui.Selectable(filename, selected)) {
+                if (Util.IsKeyDown(ImGuiKey.LeftCtrl)) {
+                    if (this.selectedFiles.Contains(file)) {
+                        this.selectedFiles.Remove(file);
+                    } else {
+                        this.selectedFiles.Add(file);
+                    }
+                } else {
+                    this.Open(file);
+                }
+            }
         }
     }
 

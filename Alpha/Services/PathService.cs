@@ -41,13 +41,17 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
         Task.Run(() => {
             try {
                 lock (this.processLock) {
-                    logger.LogInformation("Processing path lists");
-                    var stopwatch = Stopwatch.StartNew();
                     this.Clear();
+                    logger.LogInformation("Processing path lists");
+
+                    var stopwatch = Stopwatch.StartNew();
+
                     this.LoadPathLists();
                     logger.LogInformation("Loaded path lists: {Time}", stopwatch.Elapsed);
+
                     this.LoadGameFiles(gameData);
                     logger.LogInformation("Sorting folders: {Time}", stopwatch.Elapsed);
+
                     logger.LogInformation("Finished processing path lists in {Time}", stopwatch.Elapsed);
                 }
             } catch (Exception e) {
@@ -69,7 +73,7 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
 
     private void LoadPathLists() {
         foreach (var path in pathList.LoadPathLists()) {
-            var file = this.ParseResLogger(path);
+            var file = this.ParseResLogger(path.ToLower());
             var folder = this.GetFolder(file.FolderName!, true)!;
             folder.Files[file.FileHash] = file;
 
@@ -193,7 +197,7 @@ public class PathService(ILogger<PathService> logger, PathListService pathList) 
     }
 
     public record File(Dat? Dat, ulong Hash, string? FolderName = null, string? FileName = null) {
-        public string? Path = FolderName != null && FileName != null ? FolderName + FileName : null;
+        public string? Path => FolderName != null && FileName != null ? (FolderName + "/" + FileName) : null;
         public uint FolderHash = (uint) (Hash >> 32);
         public uint FileHash = (uint) Hash;
 

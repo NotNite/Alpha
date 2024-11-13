@@ -115,22 +115,23 @@ public class Components {
         }
     }
 
+    public static void DrawFakeHamburger(Action draw) {
+        const string contextMenuId = "##fakeHamburger";
+        if (ImGui.Button("#")) ImGui.OpenPopup(contextMenuId);
+        if (ImGui.BeginPopup(contextMenuId)) {
+            draw();
+            ImGui.EndPopup();
+        }
+    }
+
     public static AlphaGameData? DrawGameDataPicker(GameDataService gameData, AlphaGameData current) {
         AlphaGameData? ret = null;
 
-        const string contextMenuId = "##gameDataPickerContextMenu";
-
-        if (ImGui.Button("#")) ImGui.OpenPopup(contextMenuId);
-
-        if (ImGui.BeginPopup(contextMenuId)) {
-            var options = gameData.GameDatas.Values.ToList();
-            var names = options.Select(x => x.GameInstallationInfo.GameVersion ?? x.GamePath).ToArray();
-            var currentIdx = options.IndexOf(current);
-            if (ImGui.Combo("##gameDataPicker", ref currentIdx, names, names.Length)) {
-                ret = options[currentIdx];
-            }
-
-            ImGui.EndPopup();
+        var options = gameData.GameDatas.Values.ToList();
+        var names = options.Select(x => x.GameInstallationInfo.GameVersion ?? x.GamePath).ToArray();
+        var currentIdx = options.IndexOf(current);
+        if (ImGui.Combo("##gameDataPicker", ref currentIdx, names, names.Length)) {
+            ret = options[currentIdx];
         }
 
         return ret;
