@@ -29,7 +29,10 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         this.SheetDefinitions.Clear();
     }
 
-    public IAlphaSheet? GetSheet(string name, bool skipCache = false) {
+    public IAlphaSheet? GetSheet(string name, bool skipCache = false, bool resolveDefinition = true) {
+        if (!this.SheetDefinitions.ContainsKey(name) && resolveDefinition) {
+            this.ResolveSheetDefinition(name);
+        }
         if (this.SheetsCache.TryGetValue(name, out var sheet)) return sheet;
 
         var rawSheet = this.GameData?.GameData.Excel.GetRawSheet(name: name);
@@ -42,10 +45,6 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         }
         if (skipCache) return sheet;
         this.SheetsCache[name] = sheet;
-
-        if (!this.SheetDefinitions.ContainsKey(name)) {
-            this.ResolveSheetDefinition(name);
-        }
 
         return sheet;
     }
@@ -65,8 +64,8 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
     }
 
     public uint? GetDefaultColumnForSheet(string sheetName) => this.SheetDefinitions.TryGetValue(sheetName, out var def)
-                                                                  ? def?.DefaultColumn
-                                                                  : null;
+                                                                   ? def?.DefaultColumn
+                                                                   : null;
 
     private void ResolveSheetDefinition(string name) {
         // TODO: exdschema

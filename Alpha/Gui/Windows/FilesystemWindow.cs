@@ -177,7 +177,6 @@ public class FilesystemWindow : Window, IDisposable {
 
             ImGui.SameLine();
 
-            // TODO: Excel
             if (resource is TexFile texFile) {
                 if (ImGui.Button("Export as .png")) Util.ExportAsPng(texFile);
 
@@ -194,16 +193,17 @@ public class FilesystemWindow : Window, IDisposable {
     private void DrawFolder(string path, PathService.Folder folder) {
         var filterExists = !string.IsNullOrWhiteSpace(this.filter);
 
-        var folders = folder.Folders.Values.OrderBy(x => x.Name.StartsWith('~')).ThenBy(x => x.Name);
+        var folders = folder.Folders.Values
+            .Where(x => !filterExists || this.filteredDirectories.Contains(path + "/" + x.Name))
+            .OrderBy(x => x.Name.StartsWith('~'))
+            .ThenBy(x => x.Name);
         var files = folder.Files.Values
+            .Where(x => !filterExists || this.GetPath(x).Contains(this.filter, StringComparison.OrdinalIgnoreCase))
             .Select(x => (File: x, Filename: x.FileName ?? Util.PrintFileHash(x.FileHash)))
             .OrderBy(x => x.File.FileName is null)
             .ThenBy(x => x.Filename);
 
         foreach (var childFolder in folders) {
-            if (filterExists && folder.Name != null &&
-                !this.filteredDirectories.Any(x => x.StartsWith(path + "/" + childFolder.Name))) continue;
-
             if (ImGui.TreeNode(childFolder.Name + "/")) {
                 this.DrawFolder(path + "/" + childFolder.Name, childFolder);
                 ImGui.TreePop();
@@ -211,8 +211,6 @@ public class FilesystemWindow : Window, IDisposable {
         }
 
         foreach (var (file, filename) in files) {
-            if (filterExists && !this.GetPath(file).Contains(this.filter, StringComparison.OrdinalIgnoreCase)) continue;
-
             var selected = this.SelectedFile?.Item2 == file || this.selectedFiles.Contains(file);
             if (ImGui.Selectable(filename, selected)) {
                 if (Util.IsKeyDown(ImGuiKey.LeftCtrl)) {

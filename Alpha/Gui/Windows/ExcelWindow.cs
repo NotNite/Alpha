@@ -18,14 +18,6 @@ namespace Alpha.Gui.Windows;
 public class ExcelWindow : Window {
     private IAlphaSheet? selectedSheet;
 
-    private string sidebarFilter = string.Empty;
-    private List<string>? filteredSheets;
-    private float sidebarWidth = 300f;
-
-    private string contentFilter = string.Empty;
-    private List<(uint Row, ushort? Subrow)>? filteredRows;
-    private CancellationTokenSource? filterCts;
-
     private (string, (uint Row, ushort? Subrow)?)? queuedOpen;
     private (uint Row, ushort? Subrow)? highlightRow;
     private (uint Row, ushort? Subrow)? tempScroll;
@@ -35,8 +27,16 @@ public class ExcelWindow : Window {
     private readonly Dictionary<IAlphaSheet, Dictionary<(uint, uint), CachedCell>> cellCache = new();
     private readonly List<(uint Row, ushort? Subrow)> rowMap = new();
 
-    private CancellationTokenSource? scriptToken;
-    private string? scriptError;
+    private string sidebarFilter = string.Empty;
+    private bool fullTextSearch;
+    private List<string>? filteredSheets;
+    private CancellationTokenSource? sidebarFilterCts;
+    private float sidebarWidth = 300f;
+
+    private string contentFilter = string.Empty;
+    private List<(uint Row, ushort? Subrow)>? filteredRows;
+    private CancellationTokenSource? contentFilterCts;
+    private string? contentFilterError;
 
     private readonly GameDataService gameDataService;
     private readonly ExcelService excel;
@@ -60,6 +60,17 @@ public class ExcelWindow : Window {
         this.selectedSheet = null;
         this.filteredSheets = null;
         this.filteredRows = null;
+
+        this.sidebarFilter = string.Empty;
+        this.contentFilter = string.Empty;
+        this.sidebarFilterCts?.Cancel();
+        this.sidebarFilterCts?.Dispose();
+
+        this.sidebarFilterCts = null;
+        this.contentFilterCts?.Cancel();
+        this.contentFilterCts?.Dispose();
+        this.contentFilterCts = null;
+
         this.ResolveSidebarFilter();
 
         this.queuedOpen = null;
@@ -115,11 +126,29 @@ public class ExcelWindow : Window {
         {
             ImGui.SetNextItemWidth(this.sidebarWidth - ImGui.GetCursorPosY());
 
-            // TODO: full text search
+            var shouldOrange = this.fullTextSearch;
+            if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(1f, 0.5f, 0f, 0.5f));
 
-            if (ImGui.InputText("##ExcelFilter", ref this.sidebarFilter, 1024)) {
+            if (ImGui.InputText("##ExcelFilter", ref this.sidebarFilter, 1024,
+                    ImGuiInputTextFlags.EnterReturnsTrue)) {
                 this.ResolveSidebarFilter();
             }
+
+            if (ImGui.IsItemHovered()) {
+                ImGui.BeginTooltip();
+                var filterMode = this.fullTextSearch ? "Full text search" : "Name search";
+                ImGui.TextUnformatted(
+                    $"Current filter mode: {filterMode}\n"
+                    + "Right click to change the filter mode.");
+
+                if (Util.IsMouseClicked(ImGuiMouseButton.Right)) {
+                    this.fullTextSearch = !this.fullTextSearch;
+                }
+
+                ImGui.EndTooltip();
+            }
+
+            if (shouldOrange) ImGui.PopStyleColor();
         }
 
         var cra = ImGui.GetContentRegionAvail();
@@ -154,9 +183,9 @@ public class ExcelWindow : Window {
     private void DrawContentFilter(float width) {
         ImGui.SetNextItemWidth(width);
 
-        var shouldRed = this.scriptError is not null;
+        var shouldRed = this.contentFilterError is not null;
         if (shouldRed) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0f, 0f, 1f));
-        var shouldOrange = this.scriptToken is not null && !shouldRed;
+        var shouldOrange = this.contentFilterCts is not null && !shouldRed;
         if (shouldOrange) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0f, 1f));
 
         if (ImGui.InputText("##ExcelContentFilter", ref this.contentFilter, 1024,
@@ -174,7 +203,7 @@ public class ExcelWindow : Window {
             ImGui.PopStyleColor();
             if (ImGui.IsItemHovered()) {
                 ImGui.BeginTooltip();
-                ImGui.TextUnformatted(this.scriptError ?? "Unknown error");
+                ImGui.TextUnformatted(this.contentFilterError ?? "Unknown error");
                 ImGui.EndTooltip();
             }
         }
@@ -236,22 +265,71 @@ public class ExcelWindow : Window {
             return;
         }
 
-        var filter = this.sidebarFilter.ToLower();
-        this.filteredSheets = this.excel.Sheets
-            .Where(x => x.ToLower().Contains(filter))
-            .ToList();
+        if (this.sidebarFilterCts is not null) {
+            this.sidebarFilterCts.Cancel();
+            this.sidebarFilterCts.Dispose();
+            this.sidebarFilterCts = null;
+        }
+        this.sidebarFilterCts = new CancellationTokenSource();
+
+        this.filteredSheets = new();
+        var filter = this.sidebarFilter;
+        var fullText = this.fullTextSearch;
+        Task.Run(() => {
+            foreach (var sheet in this.excel.Sheets) {
+                if (this.sidebarFilterCts?.Token.IsCancellationRequested == true) break;
+
+                if (fullText) {
+                    var raw = this.excel.GetSheet(sheet, resolveDefinition: false);
+                    if (raw is null) break;
+
+                    var found = false;
+                    foreach (var row in raw.GetRows()) {
+                        if (this.sidebarFilterCts?.Token.IsCancellationRequested == true || found) break;
+                        for (var i = 0u; i < raw.Columns.Count; i++) {
+                            if (this.sidebarFilterCts?.Token.IsCancellationRequested == true) break;
+
+                            try {
+                                var obj = row.ReadColumn(i);
+                                if (obj.ToString()?.Contains(filter, StringComparison.CurrentCultureIgnoreCase) ==
+                                    true) {
+                                    lock (this.filteredSheets) {
+                                        if (!this.filteredSheets.Contains(sheet)) {
+                                            this.filteredSheets.Add(sheet);
+                                            this.filteredSheets.Sort();
+                                        }
+                                    }
+
+                                    found = true;
+                                    break;
+                                }
+                            } catch {
+                                // Some sheets have invalid SeString
+                            }
+                        }
+                    }
+                } else {
+                    if (sheet.Contains(filter, StringComparison.CurrentCultureIgnoreCase)) {
+                        this.filteredSheets.Add(sheet);
+                    }
+                }
+            }
+
+            this.logger.LogDebug("Sidebar filter resolved!");
+            this.sidebarFilterCts?.Dispose();
+            this.sidebarFilterCts = null;
+        }, this.sidebarFilterCts!.Token);
     }
 
     private void ResolveContentFilter() {
-        Log.Debug("Resolving content filter...");
+        this.logger.LogDebug("Resolving content filter...");
 
-        if (this.scriptToken is not null && !this.scriptToken.IsCancellationRequested) {
-            this.scriptToken.Cancel();
-            this.scriptToken.Dispose();
-            this.scriptToken = null;
+        this.contentFilterError = null;
+        if (this.contentFilterCts is not null) {
+            this.contentFilterCts.Cancel();
+            this.contentFilterCts.Dispose();
+            this.contentFilterCts = null;
         }
-
-        this.scriptError = null;
 
         if (string.IsNullOrEmpty(this.contentFilter)) {
             this.filteredRows = null;
@@ -263,13 +341,13 @@ public class ExcelWindow : Window {
             return;
         }
 
-        if (this.filterCts is not null) {
-            this.filterCts.Cancel();
-            this.filterCts.Dispose();
-            this.filterCts = null;
+        if (this.contentFilterCts is not null) {
+            this.contentFilterCts.Cancel();
+            this.contentFilterCts.Dispose();
+            this.contentFilterCts = null;
         }
+        this.contentFilterCts = new CancellationTokenSource();
 
-        this.filterCts = new CancellationTokenSource();
         if (this.contentFilter.StartsWith('$')) {
             this.ContentFilterScript(this.contentFilter[1..]);
         } else {
@@ -277,7 +355,7 @@ public class ExcelWindow : Window {
         }
 
         this.itemHeight = 0;
-        Log.Debug("Filter resolved!");
+        this.logger.LogDebug("Content filter resolved!");
     }
 
     private void ContentFilterSimple(string filter) {
@@ -286,7 +364,7 @@ public class ExcelWindow : Window {
             var colCount = this.selectedSheet!.Columns.Count;
 
             for (var i = 0u; i < this.selectedSheet.Count; i++) {
-                if (this.filterCts?.Token.IsCancellationRequested == true) return;
+                if (this.contentFilterCts?.Token.IsCancellationRequested == true) return;
 
                 var row = this.selectedSheet.GetRow(i);
                 if (row is null) continue;
@@ -307,11 +385,11 @@ public class ExcelWindow : Window {
                     }
                 }
             }
-        }, this.filterCts!.Token);
+        }, this.contentFilterCts!.Token);
     }
 
     private void ContentFilterScript(string script) {
-        this.scriptError = null;
+        this.contentFilterError = null;
         this.filteredRows = new();
 
         // picked a random type for this, doesn't really matter
@@ -332,17 +410,16 @@ public class ExcelWindow : Window {
         var genericMethod = sheetRow is not null ? getExcelSheet?.MakeGenericMethod(sheetRow) : null;
         var sheetInstance = genericMethod?.Invoke(this.GameData?.GameData, [null, null]);
 
-        var ct = new CancellationTokenSource();
         Task.Run(async () => {
             try {
                 var globalsType = sheetRow != null
                                       ? typeof(ExcelScriptingGlobal<>).MakeGenericType(sheetRow)
                                       : null;
                 var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
-                expr.Compile(ct.Token);
+                expr.Compile(this.contentFilterCts!.Token);
 
                 for (var i = 0u; i < this.selectedSheet!.Count; i++) {
-                    if (ct.IsCancellationRequested) {
+                    if (this.contentFilterCts?.Token.IsCancellationRequested == true) {
                         this.logger.LogDebug("Filter script cancelled - aborting");
                         return;
                     }
@@ -352,10 +429,10 @@ public class ExcelWindow : Window {
 
                     async void SimpleEval() {
                         try {
-                            var res = await expr.RunAsync(cancellationToken: ct.Token);
+                            var res = await expr.RunAsync(cancellationToken: this.contentFilterCts!.Token);
                             if (res.ReturnValue) this.filteredRows?.Add((row.Row, row.Subrow));
                         } catch (Exception e) {
-                            this.scriptError = e.Message;
+                            this.contentFilterError = e.Message;
                         }
                     }
 
@@ -372,26 +449,25 @@ public class ExcelWindow : Window {
                             SimpleEval();
                         } else {
                             try {
-                                var res = await expr.RunAsync(globals, ct.Token);
+                                var res = await expr.RunAsync(globals, this.contentFilterCts!.Token);
                                 if (res.ReturnValue) {
                                     this.filteredRows?.Add((row.Row, row.Subrow));
                                 }
                             } catch (Exception e) {
-                                this.scriptError = e.Message;
+                                this.contentFilterError = e.Message;
                             }
                         }
                     }
                 }
             } catch (Exception e) {
                 this.logger.LogError(e, "Filter script failed");
-                this.scriptError = e.Message;
+                this.contentFilterError = e.Message;
             }
 
             this.logger.LogDebug("Filter script finished");
-            this.scriptToken = null;
-        }, ct.Token);
-
-        this.scriptToken = ct;
+            this.contentFilterCts?.Dispose();
+            this.contentFilterCts = null;
+        }, this.contentFilterCts!.Token);
     }
 
     private void DrawSheet(float width) {
@@ -498,7 +574,7 @@ public class ExcelWindow : Window {
                 ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, newBg);
             }
 
-            if (shouldPopColor && highlighted) ImGui.PopStyleColor(2);
+            if (shouldPopColor) ImGui.PopStyleColor(2);
             if (highlighted) shouldPopColor = true;
 
             var str = row.Row.ToString();

@@ -30,3 +30,4 @@ Alpha recently went through a rewrite, and some features are missing:
 
 - [ ] Excel language switcher
 - [ ] EXDSchema support, and saving Excel schemas to disk
+- [ ] Custom fonts
