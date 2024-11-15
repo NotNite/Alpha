@@ -28,6 +28,7 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         this.GameData = gameData;
         this.SheetsCache.Clear();
         this.SheetDefinitions.Clear();
+        this.resolvingDefinitions.Clear();
     }
 
     public IAlphaSheet? GetSheet(string name, bool skipCache = false, bool resolveDefinition = true) {
