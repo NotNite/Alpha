@@ -575,7 +575,10 @@ public class ExcelWindow : Window {
                 ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, newBg);
             }
 
-            if (shouldPopColor) ImGui.PopStyleColor(2);
+            if (shouldPopColor) {
+                ImGui.PopStyleColor(2);
+                shouldPopColor = false;
+            }
             if (highlighted) shouldPopColor = true;
 
             var str = row.Row.ToString();
@@ -613,6 +616,7 @@ public class ExcelWindow : Window {
                 if (col < colCount - 1) ImGui.TableNextColumn();
             }
         }
+        if (shouldPopColor) ImGui.PopStyleColor(2);
 
         if (this.itemHeight is not null && newHeight > this.itemHeight) {
             this.itemHeight = newHeight;

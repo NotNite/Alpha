@@ -13,7 +13,7 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
     public AlphaGameData? GameData;
     public readonly Dictionary<string, IAlphaSheet?> SheetsCache = new();
     public readonly Dictionary<string, SheetDefinition?> SheetDefinitions = new();
-    public string[] Sheets => (GameData?.GameData.Excel.SheetNames.ToArray()
+    public string[] Sheets => (this.GameData?.GameData.Excel.SheetNames.ToArray()
                                       .OrderBy(s => s)
                                       .ToArray()) ?? [];
 

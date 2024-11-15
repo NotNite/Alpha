@@ -51,7 +51,7 @@ public class SaintCoinachSheetDefinition : SheetDefinition {
     // can't put this in constructor, dunno why
     private void EnsureColumnCache() {
         if (this.columnCache is null) {
-            this.columnCache = new Dictionary<uint, ColumnDefinition>();
+            this.columnCache = new Dictionary<uint, ColumnDefinition>()!;
 
             foreach (var def in this.Definitions) this.ResolveDefinition(def);
         }
