@@ -542,7 +542,9 @@ public class ExcelWindow : Window {
             ImGui.PopID();
         }
 
-        var actualRowCount = this.filteredRows?.Count ?? (int) rowCount;
+        // Copy to a variable to avoid a race condition
+        var filteredRows = this.filteredRows;
+        var actualRowCount = filteredRows?.Count ?? (int) rowCount;
         var clipper = new ListClipper(actualRowCount, itemHeight: this.itemHeight ?? 0);
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
@@ -550,8 +552,8 @@ public class ExcelWindow : Window {
         var shouldPopColor = false;
         foreach (var i in clipper.Rows) {
             var rowData = this.rowMap[i];
-            if (this.filteredRows is not null) {
-                rowData = this.filteredRows[i];
+            if (filteredRows is not null) {
+                rowData = filteredRows[i];
             }
             var (rowId, subrowId) = rowData;
 
