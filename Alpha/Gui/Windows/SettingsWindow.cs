@@ -5,7 +5,19 @@ using Hexa.NET.ImGui;
 namespace Alpha.Gui.Windows;
 
 [Window("Settings", SingleInstance = true)]
-public class SettingsWindow(GameDataService gameData, PathListService pathList, Config config) : Window {
+public class SettingsWindow : Window {
+    private readonly GameDataService gameData;
+    private readonly PathListService pathList;
+    private readonly Config config;
+
+    public SettingsWindow(GameDataService gameData, PathListService pathList, Config config) {
+        this.gameData = gameData;
+        this.pathList = pathList;
+        this.config = config;
+
+        this.InitialSize = new Vector2(800, 600);
+    }
+
     protected override void Draw() {
         if (ImGui.BeginTabBar("##SettingsTabBar")) {
             this.DrawTab("Game Paths", this.DrawGamePathsTab);
@@ -29,19 +41,21 @@ public class SettingsWindow(GameDataService gameData, PathListService pathList, 
     }
 
     private void DrawGamePathsTab() {
-        Components.DrawGamePaths(gameData);
+        Components.DrawGamePaths(this.gameData);
     }
 
     private void DrawPathListsTab() {
-        Components.DrawPathLists(pathList);
+        Components.DrawPathLists(this.pathList);
     }
 
     private void DrawExcelTab() {
+        // ReSharper disable once ReplaceWithSingleAssignment.False
         var anyChanged = false;
-        if (ImGui.Checkbox("Sort by offsets", ref config.SortByOffsets)) anyChanged = true;
-        if (ImGui.Checkbox("Always show offsets", ref config.AlwaysShowOffsets)) anyChanged = true;
-        if (ImGui.Checkbox("Highlight links", ref config.HighlightLinks)) anyChanged = true;
-        if (ImGui.Checkbox("Keep images at line height", ref config.LineHeightImages)) anyChanged = true;
-        if (anyChanged) config.Save();
+        // ReSharper disable once ConvertIfToOrExpression
+        if (ImGui.Checkbox("Sort by offsets", ref this.config.SortByOffsets)) anyChanged = true;
+        if (ImGui.Checkbox("Always show offsets", ref this.config.AlwaysShowOffsets)) anyChanged = true;
+        if (ImGui.Checkbox("Highlight links", ref this.config.HighlightLinks)) anyChanged = true;
+        if (ImGui.Checkbox("Keep images at line height", ref this.config.LineHeightImages)) anyChanged = true;
+        if (anyChanged) this.config.Save();
     }
 }
