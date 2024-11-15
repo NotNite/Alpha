@@ -363,13 +363,11 @@ public class ExcelWindow : Window {
             this.filteredRows = new();
             var colCount = this.selectedSheet!.Columns.Count;
 
-            for (var i = 0u; i < this.selectedSheet.Count; i++) {
+            foreach (var row in this.selectedSheet.GetRows()) {
                 if (this.contentFilterCts?.Token.IsCancellationRequested == true) return;
 
-                var row = this.selectedSheet.GetRow(i);
-                if (row is null) continue;
-
                 var rowStr = row.Row.ToString();
+                if (row.Subrow is not null) rowStr += $".{row.Subrow}";
                 if (rowStr.Contains(filter, StringComparison.CurrentCultureIgnoreCase)) {
                     this.filteredRows!.Add((row.Row, row.Subrow));
                     continue;
@@ -385,6 +383,9 @@ public class ExcelWindow : Window {
                     }
                 }
             }
+
+            this.contentFilterCts?.Dispose();
+            this.contentFilterCts = null;
         }, this.contentFilterCts!.Token);
     }
 

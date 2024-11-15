@@ -18,6 +18,7 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
                                       .ToArray()) ?? [];
 
     private readonly HttpClient httpClient = new();
+    private readonly List<string> resolvingDefinitions = new();
 
     public void Dispose() {
         this.httpClient.Dispose();
@@ -68,6 +69,9 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
                                                                    : null;
 
     private void ResolveSheetDefinition(string name) {
+        if (this.resolvingDefinitions.Contains(name)) return;
+        this.resolvingDefinitions.Add(name);
+
         // TODO: exdschema
         var url =
             $"https://raw.githubusercontent.com/xivapi/SaintCoinach/master/SaintCoinach/Definitions/{name}.json";
