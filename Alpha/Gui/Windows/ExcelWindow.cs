@@ -10,7 +10,6 @@ using Lumina;
 using Lumina.Excel;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.Extensions.Logging;
-using Serilog;
 
 namespace Alpha.Gui.Windows;
 
@@ -24,7 +23,7 @@ public class ExcelWindow : Window {
     private bool painted;
     private float? itemHeight = 0;
 
-    private readonly Dictionary<IAlphaSheet, Dictionary<(uint, uint), CachedCell>> cellCache = new();
+    private readonly Dictionary<IAlphaSheet, Dictionary<(uint Row, ushort? Subrow, uint Column), CachedCell>> cellCache = new();
     private readonly List<(uint Row, ushort? Subrow)> rowMap = new();
 
     private string sidebarFilter = string.Empty;
@@ -419,14 +418,11 @@ public class ExcelWindow : Window {
                 var expr = CSharpScript.Create<bool>(script, globalsType: globalsType);
                 expr.Compile(this.contentFilterCts!.Token);
 
-                for (var i = 0u; i < this.selectedSheet!.Count; i++) {
+                foreach (var row in this.selectedSheet!.GetRows()) {
                     if (this.contentFilterCts?.Token.IsCancellationRequested == true) {
                         this.logger.LogDebug("Filter script cancelled - aborting");
                         return;
                     }
-
-                    var row = this.selectedSheet.GetRow(i);
-                    if (row is null) continue;
 
                     async void SimpleEval() {
                         try {
@@ -492,7 +488,7 @@ public class ExcelWindow : Window {
                                       | ImGuiTableFlags.ScrollY;
 
         // +1 here for the row ID column
-        if (!ImGui.BeginTable("##ExcelTable", (int) (colCount + 1), flags)) {
+        if (!ImGui.BeginTable("##ExcelTable", colCount + 1, flags)) {
             return;
         }
 
@@ -544,7 +540,7 @@ public class ExcelWindow : Window {
 
         // Copy to a variable to avoid a race condition
         var filteredRows = this.filteredRows;
-        var actualRowCount = filteredRows?.Count ?? (int) rowCount;
+        var actualRowCount = filteredRows?.Count ?? rowCount;
         var clipper = new ListClipper(actualRowCount, itemHeight: this.itemHeight ?? 0);
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
@@ -644,15 +640,15 @@ public class ExcelWindow : Window {
             this.cellCache[sheet] = realCellCache = new();
         }
 
-        if (realCellCache.TryGetValue((rowId, colId), out var cachedCell)) {
+        if (realCellCache.TryGetValue((rowId, subrowId, colId), out var cachedCell)) {
             return cachedCell.Value;
         }
 
-        var row = sheet.GetRow(rowId);
+        var row = sheet.GetRow(rowId, subrowId);
         var data = row?.ReadColumn(colId);
         var cell = this.excel.GetCell(sheet, rowId, subrowId, colId, data);
         var cached = new CachedCell(cell);
-        realCellCache[(rowId, colId)] = cached;
+        realCellCache[(rowId, subrowId, colId)] = cached;
         return cached.Value;
     }
 
