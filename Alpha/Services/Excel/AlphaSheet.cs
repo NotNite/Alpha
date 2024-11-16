@@ -34,7 +34,7 @@ public record AlphaSheet(ExcelSheet<RawRow> Sheet, string Name) : IAlphaSheet {
 
 public record AlphaSubrowSheet(SubrowExcelSheet<RawSubrow> Sheet, string Name) : IAlphaSheet {
     public IReadOnlyList<ExcelColumnDefinition> Columns => this.Sheet.Columns;
-    public int Count => this.Sheet.Count;
+    public int Count => this.Sheet.Select(s => s.Count).Sum();
 
     public IAlphaRow? GetRow(uint row, ushort? subrow = null) {
         if (row == uint.MaxValue) return null;
