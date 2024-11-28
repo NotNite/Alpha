@@ -13,9 +13,7 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
     public AlphaGameData? GameData;
     public readonly Dictionary<string, IAlphaSheet?> SheetsCache = new();
     public readonly Dictionary<string, SheetDefinition?> SheetDefinitions = new();
-    public string[] Sheets => (this.GameData?.GameData.Excel.SheetNames.ToArray()
-                                      .OrderBy(s => s)
-                                      .ToArray()) ?? [];
+    public string[] Sheets = [];
 
     private readonly HttpClient httpClient = new();
     private readonly List<string> resolvingDefinitions = new();
@@ -29,6 +27,9 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         this.SheetsCache.Clear();
         this.SheetDefinitions.Clear();
         this.resolvingDefinitions.Clear();
+        this.Sheets = this.GameData?.GameData.Excel.SheetNames.ToArray()
+            .OrderBy(s => s)
+            .ToArray() ?? [];
     }
 
     public IAlphaSheet? GetSheet(string name, bool skipCache = false, bool resolveDefinition = true) {

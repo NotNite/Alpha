@@ -52,7 +52,7 @@ public class ExcelWindow : Window {
         this.config = config;
         this.GameData = gameData;
         this.logger = logger;
-        this.excel.GameData = gameData;
+        this.excel.SetGameData(gameData);
         this.InitialSize = new Vector2(800, 600);
     }
 
