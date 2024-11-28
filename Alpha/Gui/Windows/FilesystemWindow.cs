@@ -116,12 +116,16 @@ public class FilesystemWindow : Window, IDisposable {
                 foreach (var (folder, file) in this.pathService.GetAllFiles(this.pathService.RootDirectory)) {
                     var path = folder + "/" + (file.FileName ?? Util.PrintFileHash(file.FileHash));
                     if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
-                        if (!this.filteredDirectories.Contains(folder)) {
-                            this.filteredDirectories.Add(folder);
-                            if (folder.Split('/').FirstOrDefault() is { } root &&
-                                !this.visibleRootCategories.Contains(root))
-                                this.visibleRootCategories.Add(root);
+                        for (var i = path.LastIndexOf('/'); i != -1; i = path.LastIndexOf('/', i - 1)) {
+                            var folderSection = path[..i];
+                            if (!this.filteredDirectories.Contains(folderSection)) {
+                                this.filteredDirectories.Add(folderSection);
+                            }
                         }
+
+                        if (folder.Split('/').FirstOrDefault() is { } root &&
+                            !this.visibleRootCategories.Contains(root))
+                            this.visibleRootCategories.Add(root);
                     }
                 }
             } else {
@@ -182,8 +186,12 @@ public class FilesystemWindow : Window, IDisposable {
 
                 var size = new Vector2(texFile.Header.Width, texFile.Header.Height);
                 size = Util.ClampImageSize(size, ImGui.GetContentRegionAvail());
-                var img = this.gui.GetTexture(texFile);
-                img.Draw(size);
+                try {
+                    var img = this.gui.GetTexture(texFile);
+                    img.Draw(size);
+                } catch {
+                    // probably just BC7
+                }
             }
 
             ImGui.EndChild();
