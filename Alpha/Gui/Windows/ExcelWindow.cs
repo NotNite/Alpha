@@ -23,7 +23,8 @@ public class ExcelWindow : Window {
     private bool painted;
     private float? itemHeight = 0;
 
-    private readonly Dictionary<IAlphaSheet, Dictionary<(uint Row, ushort? Subrow, uint Column), CachedCell>> cellCache = new();
+    private readonly Dictionary<IAlphaSheet, Dictionary<(uint Row, ushort? Subrow, uint Column), CachedCell>>
+        cellCache = new();
     private readonly List<(uint Row, ushort? Subrow)> rowMap = new();
 
     private string sidebarFilter = string.Empty;
@@ -644,12 +645,20 @@ public class ExcelWindow : Window {
             return cachedCell.Value;
         }
 
-        var row = sheet.GetRow(rowId, subrowId);
-        var data = row?.ReadColumn(colId);
-        var cell = this.excel.GetCell(sheet, rowId, subrowId, colId, data);
-        var cached = new CachedCell(cell);
-        realCellCache[(rowId, subrowId, colId)] = cached;
-        return cached.Value;
+        try {
+            var row = sheet.GetRow(rowId, subrowId);
+            var data = row?.ReadColumn(colId);
+            var cell = this.excel.GetCell(sheet, rowId, subrowId, colId, data);
+            var cached = new CachedCell(cell);
+            realCellCache[(rowId, subrowId, colId)] = cached;
+            return cached.Value;
+        } catch (Exception e) {
+            this.logger.LogWarning(e, "Failed to get cell for {Sheet} {Row} {Subrow} {Col}", sheet.Name, rowId,
+                subrowId, colId);
+            var cell = new EmptyCell(rowId, subrowId, colId);
+            realCellCache[(rowId, subrowId, colId)] = new CachedCell(cell);
+            return cell;
+        }
     }
 
     public void DrawCell(IAlphaSheet sheet, uint rowId, ushort? subrowId, uint colId, bool inAnotherDraw = false) {
