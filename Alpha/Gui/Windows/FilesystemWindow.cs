@@ -232,20 +232,22 @@ public class FilesystemWindow : Window, IDisposable {
                             .FirstOrDefault(x => x.Item.File == this.shiftStartFile, (-1, default))
                             .Index;
 
-                        if (lastSelectedFileIndex < index) {
-                            for (var i = lastSelectedFileIndex; i <= index; i++) {
-                                if (isDeselect) {
-                                    this.selectedFiles.Remove(files[i].File);
-                                } else if (!this.selectedFiles.Contains(files[i].File)) {
-                                    this.selectedFiles.Add(files[i].File);
+                        if (lastSelectedFileIndex != -1) {
+                            if (lastSelectedFileIndex < index) {
+                                for (var i = lastSelectedFileIndex; i <= index; i++) {
+                                    if (isDeselect) {
+                                        this.selectedFiles.Remove(files[i].File);
+                                    } else if (!this.selectedFiles.Contains(files[i].File)) {
+                                        this.selectedFiles.Add(files[i].File);
+                                    }
                                 }
-                            }
-                        } else if (lastSelectedFileIndex > index) {
-                            for (var i = lastSelectedFileIndex; i >= index; i--) {
-                                if (isDeselect) {
-                                    this.selectedFiles.Remove(files[i].File);
-                                } else if (!this.selectedFiles.Contains(files[i].File)) {
-                                    this.selectedFiles.Add(files[i].File);
+                            } else if (lastSelectedFileIndex > index) {
+                                for (var i = lastSelectedFileIndex; i >= index; i--) {
+                                    if (isDeselect) {
+                                        this.selectedFiles.Remove(files[i].File);
+                                    } else if (!this.selectedFiles.Contains(files[i].File)) {
+                                        this.selectedFiles.Add(files[i].File);
+                                    }
                                 }
                             }
                         }
