@@ -19,6 +19,7 @@ public class FilesystemWindow : Window, IDisposable {
     private readonly List<string> filteredDirectories = [];
     private readonly List<string> visibleRootCategories = [..PathService.RootCategories.Keys];
     private readonly List<PathService.File> selectedFiles = new();
+    private PathService.File? shiftStartFile;
     private float sidebarWidth = 300f;
 
     private readonly GameDataService gameDataService;
@@ -209,7 +210,8 @@ public class FilesystemWindow : Window, IDisposable {
             .Where(x => !filterExists || this.GetPath(x).Contains(this.filter, StringComparison.OrdinalIgnoreCase))
             .Select(x => (File: x, Filename: x.FileName ?? Util.PrintFileHash(x.FileHash)))
             .OrderBy(x => x.File.FileName is null)
-            .ThenBy(x => x.Filename);
+            .ThenBy(x => x.Filename)
+            .ToArray();
 
         foreach (var childFolder in folders) {
             if (ImGui.TreeNode(childFolder.Name + "/")) {
@@ -218,17 +220,49 @@ public class FilesystemWindow : Window, IDisposable {
             }
         }
 
-        foreach (var (file, filename) in files) {
+        foreach (var (index, (file, filename)) in files.Index()) {
             var selected = this.SelectedFile?.Item2 == file || this.selectedFiles.Contains(file);
             if (ImGui.Selectable(filename, selected)) {
-                if (Util.IsKeyDown(ImGuiKey.LeftCtrl)) {
+                if (Util.IsKeyDown(ImGuiKey.LeftShift)) {
+                    var isDeselect = this.selectedFiles.Contains(file);
+
+                    if (this.shiftStartFile != null) {
+                        var lastSelectedFileIndex = files
+                            .Index()
+                            .FirstOrDefault(x => x.Item.File == this.shiftStartFile, (-1, default))
+                            .Index;
+
+                        if (lastSelectedFileIndex != -1) {
+                            if (lastSelectedFileIndex < index) {
+                                for (var i = lastSelectedFileIndex; i <= index; i++) {
+                                    if (isDeselect) {
+                                        this.selectedFiles.Remove(files[i].File);
+                                    } else if (!this.selectedFiles.Contains(files[i].File)) {
+                                        this.selectedFiles.Add(files[i].File);
+                                    }
+                                }
+                            } else if (lastSelectedFileIndex > index) {
+                                for (var i = lastSelectedFileIndex; i >= index; i--) {
+                                    if (isDeselect) {
+                                        this.selectedFiles.Remove(files[i].File);
+                                    } else if (!this.selectedFiles.Contains(files[i].File)) {
+                                        this.selectedFiles.Add(files[i].File);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                } else if (Util.IsKeyDown(ImGuiKey.LeftCtrl)) {
                     if (this.selectedFiles.Contains(file)) {
                         this.selectedFiles.Remove(file);
                     } else {
                         this.selectedFiles.Add(file);
                     }
+                    this.shiftStartFile = file;
                 } else {
                     this.Open(file);
+                    this.shiftStartFile = file;
                 }
             }
         }
