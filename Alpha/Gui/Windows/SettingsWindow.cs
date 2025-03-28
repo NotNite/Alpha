@@ -1,6 +1,8 @@
 ﻿using System.Numerics;
 using Alpha.Services;
+using Alpha.Services.Excel;
 using Hexa.NET.ImGui;
+using Lumina.Data;
 
 namespace Alpha.Gui.Windows;
 
@@ -56,6 +58,25 @@ public class SettingsWindow : Window {
         if (ImGui.Checkbox("Always show offsets", ref this.config.AlwaysShowOffsets)) anyChanged = true;
         if (ImGui.Checkbox("Highlight links", ref this.config.HighlightLinks)) anyChanged = true;
         if (ImGui.Checkbox("Keep images at line height", ref this.config.LineHeightImages)) anyChanged = true;
+
+        {
+            Language[] languages = [Language.English, Language.Japanese, Language.German, Language.French];
+            if (Components.DrawEnumCombo("Default language (requires restart)",
+                    ref this.config.DefaultLanguage, languages)) {
+                anyChanged = true;
+            }
+        }
+
+        {
+            SchemaProvider[] providers = [SchemaProvider.None, SchemaProvider.ExdSchema, SchemaProvider.SaintCoinach];
+            string[] providerNames =
+                ["None", "EXDSchema (github.com/xivdev/EXDSchema)", "SaintCoinach (github.com/xivapi/SaintCoinach)"];
+            if (Components.DrawEnumCombo("Schema provider (requires restart)", ref this.config.SchemaProvider,
+                    providers, providerNames)) {
+                anyChanged = true;
+            }
+        }
+
         if (anyChanged) this.config.Save();
     }
 }

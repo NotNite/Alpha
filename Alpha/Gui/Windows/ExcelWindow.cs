@@ -7,6 +7,7 @@ using Alpha.Services.Excel.Cells;
 using Alpha.Utils;
 using Hexa.NET.ImGui;
 using Lumina;
+using Lumina.Data;
 using Lumina.Excel;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.Extensions.Logging;
@@ -118,6 +119,17 @@ public class ExcelWindow : Window {
                 this.GameData = newGameData;
                 this.excel.SetGameData(newGameData);
                 this.GameDataChanged();
+            }
+
+            if (this.GameData is { } gameData) {
+                var language = gameData.GameData.Options.DefaultExcelLanguage;
+                Language[] languages = [Language.English, Language.Japanese, Language.German, Language.French];
+                if (Components.DrawEnumCombo("##gameDataLanguage", ref language, languages)) {
+                    gameData.GameData.Options.DefaultExcelLanguage = language;
+                    // Empty the cache
+                    this.excel.SetGameData(gameData);
+                    this.GameDataChanged();
+                }
             }
         });
 
@@ -476,15 +488,20 @@ public class ExcelWindow : Window {
         if (!this.excel.SheetDefinitions.TryGetValue(this.selectedSheet!.Name, out var sheetDefinition)) {
             return;
         }
+        if (sheetDefinition is {Ready: false}) {
+            sheetDefinition.Init(this.excel, this.selectedSheet);
+        }
 
         var rowCount = this.selectedSheet.Count;
         var colCount = this.selectedSheet.Columns.Count;
-        colCount = Math.Min(colCount, 2048 - 1); // I think this is an ImGui limitation?
+        colCount = Math.Min(colCount, 512 - 1 - 1); // I think this is an ImGui limitation?
 
         const ImGuiTableFlags flags = ImGuiTableFlags.Borders
                                       | ImGuiTableFlags.NoSavedSettings
                                       | ImGuiTableFlags.RowBg
                                       | ImGuiTableFlags.Resizable
+                                      | ImGuiTableFlags.Reorderable
+                                      | ImGuiTableFlags.Hideable
                                       | ImGuiTableFlags.ScrollX
                                       | ImGuiTableFlags.ScrollY;
 
@@ -492,12 +509,6 @@ public class ExcelWindow : Window {
         if (!ImGui.BeginTable("##ExcelTable", colCount + 1, flags)) {
             return;
         }
-
-        ImGui.TableSetupScrollFreeze(1, 1);
-
-        ImGui.TableHeadersRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.TableHeader("Row");
 
         var colMappings = new uint[colCount];
         if (this.config.SortByOffsets) {
@@ -516,6 +527,19 @@ public class ExcelWindow : Window {
         } else {
             for (var i = 0u; i < colCount; i++) colMappings[i] = i;
         }
+
+        ImGui.TableSetupScrollFreeze(1, 1);
+        // duplicated from below for the header names in context menu
+        ImGui.TableSetupColumn("Row");
+        for (var i = 0; i < colCount; i++) {
+            var colId = colMappings[i];
+            var colName = sheetDefinition?.GetNameForColumn(colId) ?? colId.ToString();
+            ImGui.TableSetupColumn(colName);
+        }
+
+        ImGui.TableHeadersRow();
+        ImGui.TableSetColumnIndex(0);
+        ImGui.TableHeader("Row");
 
         for (var i = 0; i < colCount; i++) {
             ImGui.PushID(i);
@@ -542,77 +566,80 @@ public class ExcelWindow : Window {
         // Copy to a variable to avoid a race condition
         var filteredRows = this.filteredRows;
         var actualRowCount = filteredRows?.Count ?? rowCount;
-        var clipper = new ListClipper(actualRowCount, itemHeight: this.itemHeight ?? 0);
+        var clipper = new ImGuiListClipper();
+        clipper.Begin(actualRowCount, this.itemHeight ?? 0);
 
         // Sheets can have non-linear row IDs, so we use the index the row appears in the sheet instead of the row ID
         var newHeight = 0f;
         var shouldPopColor = false;
-        foreach (var i in clipper.Rows) {
-            var rowData = this.rowMap[i];
-            if (filteredRows is not null) {
-                rowData = filteredRows[i];
-            }
-            var (rowId, subrowId) = rowData;
+        while (clipper.Step()) {
+            for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                var rowData = this.rowMap[i];
+                if (filteredRows is not null) {
+                    rowData = filteredRows[i];
+                }
+                var (rowId, subrowId) = rowData;
 
-            // TODO: probably slow as hell, cache this
-            var row = this.selectedSheet.GetRow(rowId, subrowId);
-            if (row is null) {
-                ImGui.TableNextRow();
-                continue;
-            }
-
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-
-            var highlighted = this.highlightRow is not null
-                              && this.highlightRow.Value.Row == rowId
-                              && this.highlightRow.Value.Subrow == subrowId
-                              && this.config.HighlightLinks;
-            if (highlighted) {
-                var newBg = new Vector4(1f, 0.5f, 0f, 0.5f);
-                ImGui.PushStyleColor(ImGuiCol.TableRowBg, newBg);
-                ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, newBg);
-            }
-
-            if (shouldPopColor) {
-                ImGui.PopStyleColor(2);
-                shouldPopColor = false;
-            }
-            if (highlighted) shouldPopColor = true;
-
-            var str = row.Row.ToString();
-            if (row.Subrow is not null) {
-                str += $".{row.Subrow}";
-            }
-            ImGui.TextUnformatted(str);
-            if (ImGui.BeginPopupContextItem($"##ExcelModule_Row_{rowId}")) {
-                if (ImGui.Selectable("Copy row ID")) {
-                    ImGui.SetClipboardText(str);
+                // TODO: probably slow as hell, cache this
+                var row = this.selectedSheet.GetRow(rowId, subrowId);
+                if (row is null) {
+                    ImGui.TableNextRow();
+                    continue;
                 }
 
-                ImGui.EndPopup();
-            }
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
 
-            ImGui.TableNextColumn();
+                var highlighted = this.highlightRow is not null
+                                  && this.highlightRow.Value.Row == rowId
+                                  && this.highlightRow.Value.Subrow == subrowId
+                                  && this.config.HighlightLinks;
+                if (highlighted) {
+                    var newBg = new Vector4(1f, 0.5f, 0f, 0.5f);
+                    ImGui.PushStyleColor(ImGuiCol.TableRowBg, newBg);
+                    ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, newBg);
+                }
 
-            for (var col = 0; col < colCount; col++) {
-                var prev = ImGui.GetCursorPosY();
+                if (shouldPopColor) {
+                    ImGui.PopStyleColor(2);
+                    shouldPopColor = false;
+                }
+                if (highlighted) shouldPopColor = true;
 
-                this.DrawCell(this.selectedSheet, rowId, subrowId, colMappings[col]);
-
-                var next = ImGui.GetCursorPosY();
-                if (this.itemHeight is not null) {
-                    var spacing = ImGui.GetStyle().ItemSpacing.Y;
-                    var height = next - prev;
-                    var needed = this.itemHeight.Value - (height + spacing);
-                    if (needed > 0) {
-                        ImGui.Dummy(new Vector2(0, needed));
+                var str = row.Row.ToString();
+                if (row.Subrow is not null) {
+                    str += $".{row.Subrow}";
+                }
+                ImGui.TextUnformatted(str);
+                if (ImGui.BeginPopupContextItem($"##ExcelModule_Row_{rowId}")) {
+                    if (ImGui.Selectable("Copy row ID")) {
+                        ImGui.SetClipboardText(str);
                     }
 
-                    if (height > newHeight) newHeight = height;
+                    ImGui.EndPopup();
                 }
 
-                if (col < colCount - 1) ImGui.TableNextColumn();
+                ImGui.TableNextColumn();
+
+                for (var col = 0; col < colCount; col++) {
+                    var prev = ImGui.GetCursorPosY();
+
+                    this.DrawCell(this.selectedSheet, rowId, subrowId, colMappings[col]);
+
+                    var next = ImGui.GetCursorPosY();
+                    if (this.itemHeight is not null) {
+                        var spacing = ImGui.GetStyle().ItemSpacing.Y;
+                        var height = next - prev;
+                        var needed = this.itemHeight.Value - (height + spacing);
+                        if (needed > 0) {
+                            ImGui.Dummy(new Vector2(0, needed));
+                        }
+
+                        if (height > newHeight) newHeight = height;
+                    }
+
+                    if (col < colCount - 1) ImGui.TableNextColumn();
+                }
             }
         }
         if (shouldPopColor) ImGui.PopStyleColor(2);
@@ -630,7 +657,6 @@ public class ExcelWindow : Window {
             this.tempScroll = null;
         }
 
-        clipper.End();
         ImGui.EndTable();
 
         this.painted = true;

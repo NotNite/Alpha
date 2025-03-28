@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Net.Http.Headers;
+using System.Reflection;
 using Alpha.Game;
 using Alpha.Gui.Windows;
 using Alpha.Gui.Windows.Ftue;
@@ -17,8 +18,13 @@ public class Program {
         "Alpha"
     );
     public static IHost Host = null!;
+    public static HttpClient HttpClient = null!;
+    public static Version Version = Assembly.GetExecutingAssembly().GetName().Version!;
 
     public static void Main() {
+        HttpClient = new HttpClient();
+        HttpClient.DefaultRequestHeaders.Add("User-Agent", $"Alpha/{Version} (https://github.com/NotNite/Alpha)");
+
         var overrideAppDir = Environment.GetEnvironmentVariable("ALPHA_APPDIR");
         if (overrideAppDir is not null) AppDir = overrideAppDir;
 
@@ -50,11 +56,11 @@ public class Program {
         builder.Services.AddScoped<SettingsWindow>();
         builder.Services.AddScoped<FilesystemWindow>();
 
-        Log.Information("Alpha is starting, please wait... {Version}",
-            Assembly.GetExecutingAssembly().GetName().Version);
+        Log.Information("Alpha is starting, please wait... {Version}", Version);
         Host = builder.Build();
 
         Host.Start();
         Host.WaitForShutdown();
+        HttpClient.Dispose();
     }
 }

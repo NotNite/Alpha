@@ -1,25 +1,42 @@
-﻿using System.Text.Json;
-using Alpha.Game;
+﻿using Alpha.Game;
 using Alpha.Gui.Windows;
 using Alpha.Services.Excel.Cells;
+using Alpha.Services.Excel.ExdSchema;
 using Alpha.Services.Excel.SaintCoinach;
 using Lumina.Excel;
 using Microsoft.Extensions.Logging;
 
 namespace Alpha.Services.Excel;
 
-public class ExcelService(WindowManagerService windowManager, ILogger<ExcelService> logger)
-    : IDisposable {
+public class ExcelService {
     public AlphaGameData? GameData;
     public readonly Dictionary<string, IAlphaSheet?> SheetsCache = new();
-    public readonly Dictionary<string, SheetDefinition?> SheetDefinitions = new();
+    public readonly Dictionary<string, ISheetDefinition?> SheetDefinitions = new();
     public string[] Sheets = [];
 
-    private readonly HttpClient httpClient = new();
+    private readonly ISchemaResolver? resolver;
     private readonly List<string> resolvingDefinitions = new();
 
-    public void Dispose() {
-        this.httpClient.Dispose();
+    private readonly WindowManagerService windowManager;
+    private readonly ILogger<ExcelService> logger;
+    private readonly Config config;
+
+    public ExcelService(WindowManagerService windowManager, ILogger<ExcelService> logger, Config config) {
+        this.windowManager = windowManager;
+        this.logger = logger;
+        this.config = config;
+
+        switch (this.config.SchemaProvider) {
+            case SchemaProvider.SaintCoinach: {
+                this.resolver = new SaintCoinachResolver();
+                break;
+            }
+
+            case SchemaProvider.ExdSchema: {
+                this.resolver = new ExdSchemaResolver();
+                break;
+            }
+        }
     }
 
     public void SetGameData(AlphaGameData gameData) {
@@ -28,8 +45,8 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         this.SheetDefinitions.Clear();
         this.resolvingDefinitions.Clear();
         this.Sheets = this.GameData?.GameData.Excel.SheetNames.ToArray()
-            .OrderBy(s => s)
-            .ToArray() ?? [];
+                          .OrderBy(s => s)
+                          .ToArray() ?? [];
     }
 
     public IAlphaSheet? GetSheet(string name, bool skipCache = false, bool resolveDefinition = true) {
@@ -53,7 +70,7 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
     }
 
     public void OpenNewWindow(string? sheet = null, (uint Row, ushort? Subrow)? row = null) {
-        var window = windowManager.CreateWindow<ExcelWindow>();
+        var window = this.windowManager.CreateWindow<ExcelWindow>();
         if (sheet is not null) window.OpenSheet(sheet, row);
     }
 
@@ -61,7 +78,7 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
         this.OpenNewWindow(sheet?.Name, row);
 
     public Cell GetCell(IAlphaSheet sheet, uint row, ushort? subrow, uint column, object? data) {
-        var sheetDefinition = this.SheetDefinitions[sheet.Name];
+        var sheetDefinition = this.SheetDefinitions.GetValueOrDefault(sheet.Name);
         var cell = sheetDefinition?.GetCell(this, sheet, row, subrow, column, data);
         return cell ?? new DefaultCell(row, subrow, column, data);
     }
@@ -71,37 +88,22 @@ public class ExcelService(WindowManagerService windowManager, ILogger<ExcelServi
                                                                    : null;
 
     private void ResolveSheetDefinition(string name) {
+        if (this.resolver is null) {
+            this.SheetDefinitions[name] = null;
+            return;
+        }
+
         if (this.resolvingDefinitions.Contains(name)) return;
         this.resolvingDefinitions.Add(name);
 
-        // TODO: exdschema
-        var url =
-            $"https://raw.githubusercontent.com/xivapi/SaintCoinach/master/SaintCoinach/Definitions/{name}.json";
+        this.logger.LogInformation("Resolving sheet definition: {Name}", name);
 
-        this.httpClient.GetAsync(url).ContinueWith(t => {
+        Task.Run(async () => {
             try {
-                var result = t.Result;
-                if (result.IsSuccessStatusCode) {
-                    var json = result.Content.ReadAsStringAsync().Result;
-
-                    var sheetDefinition = JsonSerializer.Deserialize<SaintCoinachSheetDefinition>(json);
-                    if (sheetDefinition is null) {
-                        logger.LogError("Failed to deserialize sheet definition");
-                        return;
-                    }
-
-                    logger.LogDebug("Resolved sheet definition: {SheetName}", name);
-
-                    this.SheetDefinitions[name] = sheetDefinition;
-                } else {
-                    logger.LogWarning("Request for sheet definition failed: {SheetName} -> {StatusCode}",
-                        name,
-                        result.StatusCode);
-
-                    this.SheetDefinitions[name] = null;
-                }
+                this.SheetDefinitions[name] = await this.resolver.GetDefinition(name);
             } catch (Exception e) {
-                logger.LogWarning(e, "Failed to resolve sheet definition");
+                this.logger.LogWarning(e, "Request for sheet definition {SheetName} failed", name);
+                this.SheetDefinitions[name] = null;
             }
         });
     }

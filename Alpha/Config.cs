@@ -2,6 +2,8 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Alpha.Services.Excel;
+using Lumina.Data;
 using Serilog;
 
 namespace Alpha;
@@ -31,6 +33,8 @@ public class Config : IDisposable {
     public bool AlwaysShowOffsets;
     public bool HighlightLinks = true;
     public bool LineHeightImages;
+    public Language DefaultLanguage = Language.English;
+    public SchemaProvider SchemaProvider = SchemaProvider.ExdSchema;
 
     public static Config Load() {
         Config config;

@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Backends.GLFW;
 using Hexa.NET.ImGui.Backends.OpenGL3;
@@ -14,10 +15,12 @@ public unsafe class ImGuiWrapper : IDisposable {
     private readonly Sdl sdl;
     private readonly Silk.NET.SDL.Window* window;
     private readonly uint windowId;
-    private readonly void* glContext;
+    private readonly NativeContext context;
+    private readonly GL gl;
     private readonly ImGuiContext* imguiContext;
 
     public bool Exiting;
+
     public Vector2 WindowPos {
         get {
             int x;
@@ -69,8 +72,8 @@ public unsafe class ImGuiWrapper : IDisposable {
             }
         }
 
-        this.glContext = this.sdl.GLCreateContext(this.window);
-        GL.InitApi(new SdlNativeContext(this.sdl));
+        this.context = new NativeContext(this.sdl, this.window);
+        this.gl = new GL(this.context);
 
         this.imguiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(this.imguiContext);
@@ -81,19 +84,23 @@ public unsafe class ImGuiWrapper : IDisposable {
             .AddDefaultFont()
             .SetOption(config => { config.FontBuilderFlags |= (uint) ImGuiFreeTypeBuilderFlags.LoadColor; });
 
+        var io = ImGui.GetIO();
+        io.IniFilename = (byte*) Marshal.StringToHGlobalAnsi(iniPath + "\0");
+
         const string cjkFont = "C:/Windows/Fonts/msyh.ttc";
         if (File.Exists(cjkFont)) {
-            var ranges = ImGui.GetIO().Fonts.GetGlyphRangesJapanese();
+            var ranges = io.Fonts.GetGlyphRangesJapanese();
             builder.AddFontFromFileTTF(cjkFont, 13f, ranges);
         }
 
         builder.Build();
 
-        ImGuiImplSDL2.InitForOpenGL((SDLWindow*) this.window, this.glContext);
+        ImGuiImplSDL2.InitForOpenGL((SDLWindow*) this.window, (void*) this.context.Handle);
         ImGuiImplGLFW.SetCurrentContext(ImGui.GetCurrentContext());
 
         ImGuiImplOpenGL3.SetCurrentContext(ImGui.GetCurrentContext());
         ImGuiImplOpenGL3.Init((string) null!);
+
         ImGuiImplOpenGL3.NewFrame();
     }
 
@@ -120,14 +127,14 @@ public unsafe class ImGuiWrapper : IDisposable {
 
         draw();
 
-        this.sdl.GLMakeCurrent(this.window, this.glContext);
-        GL.BindFramebuffer(GLFramebufferTarget.Framebuffer, 0);
+        this.sdl.GLMakeCurrent(this.window, (void*) this.context.Handle);
+        this.gl.BindFramebuffer(GLFramebufferTarget.Framebuffer, 0);
 
         const float grey = 40 / 255f;
-        GL.ClearColor(grey, grey, grey, 1f);
+        this.gl.ClearColor(grey, grey, grey, 1f);
 
         // ReSharper disable once BitwiseOperatorOnEnumWithoutFlags
-        GL.Clear(GLClearBufferMask.ColorBufferBit | GLClearBufferMask.DepthBufferBit);
+        this.gl.Clear(GLClearBufferMask.ColorBufferBit | GLClearBufferMask.DepthBufferBit);
 
         ImGui.Render();
         ImGui.EndFrame();
@@ -154,7 +161,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         ImGui.SetCurrentContext(null);
         ImGui.DestroyContext(this.imguiContext);
 
-        this.sdl.GLDeleteContext(this.glContext);
+        this.context.Dispose();
         this.sdl.DestroyWindow(this.window);
         this.sdl.Quit();
     }
@@ -167,16 +174,17 @@ public unsafe class ImGuiWrapper : IDisposable {
         }
 
         fixed (byte* dataPtr = data) {
-            var texture = GL.GenTexture();
-            GL.BindTexture(GLTextureTarget.Texture2D, texture);
+            var texture = this.gl.GenTexture();
+            this.gl.BindTexture(GLTextureTarget.Texture2D, texture);
 
-            GL.TexParameteri(GLTextureTarget.Texture2D, GLTextureParameterName.MinFilter,
+            this.gl.TexParameteri(GLTextureTarget.Texture2D, GLTextureParameterName.MinFilter,
                 (int) GLTextureMinFilter.Linear);
-            GL.TexParameteri(GLTextureTarget.Texture2D, GLTextureParameterName.MagFilter,
+            this.gl.TexParameteri(GLTextureTarget.Texture2D, GLTextureParameterName.MagFilter,
                 (int) GLTextureMagFilter.Linear);
 
-            GL.PixelStorei(GLPixelStoreParameter.UnpackRowLength, 0);
-            GL.TexImage2D(GLTextureTarget.Texture2D, 0, GLInternalFormat.Rgba, width, height, 0, GLPixelFormat.Rgba,
+            this.gl.PixelStorei(GLPixelStoreParameter.UnpackRowLength, 0);
+            this.gl.TexImage2D(GLTextureTarget.Texture2D, 0, GLInternalFormat.Rgba, width, height, 0,
+                GLPixelFormat.Rgba,
                 GLPixelType.UnsignedByte, (nint) dataPtr);
 
             return (nint) texture;
@@ -184,22 +192,34 @@ public unsafe class ImGuiWrapper : IDisposable {
     }
 
     public void DestroyTexture(nint texture) {
-        GL.DeleteTexture((uint) texture);
+        this.gl.DeleteTexture((uint) texture);
     }
 
-    public class SdlNativeContext(Sdl sdl) : INativeContext {
-        public nint GetProcAddress(string procName) {
-            return (nint) sdl.GLGetProcAddress(procName);
+    private class NativeContext(Sdl sdl, Silk.NET.SDL.Window* window) : IGLContext {
+        private void* glContext = sdl.GLCreateContext(window);
+        public nint Handle => (nint) this.glContext;
+        public bool IsCurrent => sdl.GLGetCurrentContext() == this.glContext;
+
+        public void Dispose() {
+            if (this.glContext != null) {
+                sdl.GLDeleteContext(this.glContext);
+                this.glContext = null;
+            }
         }
 
         public bool TryGetProcAddress(string procName, out nint procAddress) {
-            return (procAddress = (nint) sdl.GLGetProcAddress(procName)) != nint.Zero;
+            procAddress = (nint) sdl.GLGetProcAddress(procName);
+            return procAddress != 0;
         }
 
-        public bool IsExtensionSupported(string extensionName) {
-            return sdl.GLExtensionSupported(extensionName) != 0;
-        }
+        public nint GetProcAddress(string procName)
+            => (nint) sdl.GLGetProcAddress(procName);
 
-        public void Dispose() { }
+        public bool IsExtensionSupported(string extensionName)
+            => sdl.GLExtensionSupported(extensionName) != 0;
+
+        public void MakeCurrent() => sdl.GLMakeCurrent(window, this.glContext);
+        public void SwapBuffers() => sdl.GLSwapWindow(window);
+        public void SwapInterval(int interval) => sdl.GLSetSwapInterval(interval);
     }
 }

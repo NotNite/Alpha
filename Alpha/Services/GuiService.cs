@@ -45,8 +45,6 @@ public class GuiService(
             this.iniPath
         );
 
-        var io = ImGui.GetIO();
-
         var stopwatch = Stopwatch.StartNew();
         while (!this.imgui.Exiting && !this.cts.Token.IsCancellationRequested) {
             stopwatch.Restart();

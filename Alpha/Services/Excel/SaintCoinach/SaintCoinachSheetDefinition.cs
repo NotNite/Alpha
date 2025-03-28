@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 using Alpha.Services.Excel.Cells;
-using Lumina.Excel;
 using Serilog;
 
 #pragma warning disable CS8618
@@ -9,18 +8,33 @@ namespace Alpha.Services.Excel.SaintCoinach;
 
 // Don't believe Rider's lies, all JSON stuff *needs* to have setters or else the JSON deserializer won't assign them
 // I wasted an hour with this, I hate you Microsoft
-public class SaintCoinachSheetDefinition : SheetDefinition {
+public class SaintCoinachSheetDefinition : ISheetDefinition {
     [JsonPropertyName("sheet")] public string? Sheet { get; init; }
     [JsonPropertyName("defaultColumn")] public string? DefaultColumnName { get; init; }
     [JsonPropertyName("definitions")] public ColumnDefinition[] Definitions { get; init; }
 
-    private uint? defaultColumn;
-    public override uint? DefaultColumn => this.defaultColumn ??=
-                                               this.DefaultColumnName is null
-                                                   ? null
-                                                   : this.GetColumnForName(this.DefaultColumnName);
+    public uint? DefaultColumn { get; set; }
+    public bool Ready { get; private set; }
 
-    private Dictionary<uint, ColumnDefinition?>? columnCache;
+    private readonly Dictionary<uint, ColumnDefinition> columnCache = new();
+
+    public void Init(ExcelService excel, IAlphaSheet sheet) {
+        if (!this.Ready) {
+            try {
+                foreach (var def in this.Definitions) {
+                    this.ResolveDefinition(def);
+                }
+
+                this.DefaultColumn = this.DefaultColumnName is null
+                                         ? null
+                                         : this.GetColumnForName(this.DefaultColumnName);
+            } catch (Exception e) {
+                Log.Error(e, "Failed to initialize sheet definition");
+            }
+
+            this.Ready = true;
+        }
+    }
 
     private uint ResolveDefinition(ColumnDefinition def, uint offset = 0) {
         // Index defaults to zero if there isn't one specified, BUT this might be a repeat or group definition
@@ -43,27 +57,17 @@ public class SaintCoinachSheetDefinition : SheetDefinition {
         }
 
         // Normal definition, just insert and move on
-        if (!this.columnCache!.ContainsKey(realOffset)) this.columnCache[realOffset] = def;
+        this.columnCache.TryAdd(realOffset, def);
 
         return 1;
     }
 
-    // can't put this in constructor, dunno why
-    private void EnsureColumnCache() {
-        if (this.columnCache is null) {
-            this.columnCache = new Dictionary<uint, ColumnDefinition>()!;
-
-            foreach (var def in this.Definitions) this.ResolveDefinition(def);
-        }
-    }
-
     private ColumnDefinition? GetDefinitionByIndex(uint index) {
-        this.EnsureColumnCache();
-        return this.columnCache!.TryGetValue(index, out var retDef) ? retDef : null;
+        return this.columnCache.TryGetValue(index, out var retDef) ? retDef : null;
     }
 
-    public override string? GetNameForColumn(uint index) {
-        var def = this.GetDefinitionByIndex(index);
+    public string? GetNameForColumn(uint column) {
+        var def = this.GetDefinitionByIndex(column);
 
         if (def is SingleColumnDefinition srd) return srd.Name;
         // TODO
@@ -71,9 +75,8 @@ public class SaintCoinachSheetDefinition : SheetDefinition {
         return null;
     }
 
-    public override uint? GetColumnForName(string name) {
-        this.EnsureColumnCache();
-        foreach (var (key, value) in this.columnCache!)
+    public uint? GetColumnForName(string name) {
+        foreach (var (key, value) in this.columnCache)
             if (value is SingleColumnDefinition srd && srd.Name == name)
                 return key;
         // TODO
@@ -89,7 +92,7 @@ public class SaintCoinachSheetDefinition : SheetDefinition {
         return null;
     }
 
-    public override Cell? GetCell(
+    public Cell? GetCell(
         ExcelService excel, IAlphaSheet sheet, uint row, ushort? subrow, uint column, object? data
     ) {
         var converter = this.GetConverterForColumn(column);

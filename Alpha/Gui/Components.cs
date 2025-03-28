@@ -83,7 +83,7 @@ public class Components {
             });
         if (disabled) ImGui.EndDisabled();
 
-        if (ImGui.BeginTable("Path Lists Table", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit)) {
+        if (ImGui.BeginTable("Path Lists Table", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit)) {
             ImGui.TableSetupColumn("Name");
             ImGui.TableSetupColumn("Actions");
             ImGui.TableHeadersRow();
@@ -135,5 +135,19 @@ public class Components {
         }
 
         return ret;
+    }
+
+    public static bool DrawEnumCombo<T>(string label, ref T current, T[] values, string[]? names = null)
+        where T : struct, Enum {
+        var realNames = names ?? values.Select(x => x.ToString()).ToArray();
+        var idx = Array.IndexOf(values, current);
+        if (idx == -1) idx = 0;
+
+        if (ImGui.Combo(label, ref idx, realNames, realNames.Length)) {
+            current = values[idx];
+            return true;
+        } else {
+            return false;
+        }
     }
 }

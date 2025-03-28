@@ -60,26 +60,22 @@ public class FilesystemWindow : Window, IDisposable {
             return;
         }
 
-        var temp = ImGui.GetCursorPosY();
         this.DrawSidebar();
-        ImGui.SameLine();
 
-        ImGui.SetCursorPosY(temp);
-        Components.DrawHorizontalSplitter(ref this.sidebarWidth);
-
-        ImGui.SameLine();
-        ImGui.SetCursorPosY(temp);
-
-        this.DrawContent();
+        ImGui.BeginGroup();
+        try {
+            this.DrawContent();
+        } catch (Exception e) {
+            this.logger.LogWarning(e, "Failed to draw content");
+        }
+        ImGui.EndGroup();
     }
 
     private void DrawSidebar() {
-        if (!this.pathService.IsReady) {
-            ImGui.TextUnformatted("Processing path lists...");
-            return;
-        }
+        var temp = ImGui.GetCursorPosY();
 
         Components.DrawFakeHamburger(() => {
+            if (!this.pathService.IsReady) return;
             if (Components.DrawGameDataPicker(this.gameDataService, this.GameData!) is { } newGameData) {
                 this.GameData = newGameData;
                 this.pathService.SetGameData(this.GameData);
@@ -109,7 +105,8 @@ public class FilesystemWindow : Window, IDisposable {
         ImGui.SameLine();
 
         ImGui.SetNextItemWidth(this.sidebarWidth - ImGui.GetCursorPosY());
-        if (ImGui.InputText("##FilesystemWindow_Filter", ref this.filter, 1024, ImGuiInputTextFlags.EnterReturnsTrue)) {
+        if (ImGui.InputText("##FilesystemWindow_Filter", ref this.filter, 1024, ImGuiInputTextFlags.EnterReturnsTrue)
+            && this.pathService.IsReady) {
             if (this.filter.Length > 0) {
                 this.filteredDirectories.Clear();
                 this.visibleRootCategories.Clear();
@@ -138,18 +135,30 @@ public class FilesystemWindow : Window, IDisposable {
 
         if (ImGui.BeginChild("##FilesystemWindow_Sidebar", ImGui.GetContentRegionAvail() with {X = this.sidebarWidth},
                 ImGuiChildFlags.Borders)) {
-            foreach (var folder in this.pathService.RootDirectory.Folders
-                         .Values
-                         .OrderBy(x => PathService.RootCategories[x.Name])) {
-                if (!this.visibleRootCategories.Contains(folder.Name)) continue;
-                if (ImGui.TreeNode(folder.Name + "/")) {
-                    this.DrawFolder(folder.Name, folder);
-                    ImGui.TreePop();
+            if (this.pathService.IsReady) {
+                foreach (var folder in this.pathService.RootDirectory.Folders
+                             .Values
+                             .OrderBy(x => PathService.RootCategories[x.Name])) {
+                    if (!this.visibleRootCategories.Contains(folder.Name)) continue;
+                    if (ImGui.TreeNode(folder.Name + "/")) {
+                        this.DrawFolder(folder.Name, folder);
+                        ImGui.TreePop();
+                    }
                 }
+            } else {
+                ImGui.TextUnformatted("Processing path lists...");
             }
 
             ImGui.EndChild();
         }
+
+        ImGui.SameLine();
+        ImGui.SetCursorPosY(temp);
+
+        Components.DrawHorizontalSplitter(ref this.sidebarWidth);
+
+        ImGui.SameLine();
+        ImGui.SetCursorPosY(temp);
     }
 
     private string GetPath(PathService.File file) {
@@ -168,6 +177,7 @@ public class FilesystemWindow : Window, IDisposable {
 
     private void DrawContent() {
         if (this.SelectedFile is null) return;
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
 
         if (ImGui.BeginChild("##FilesystemWindow_Content", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders)) {
             var (resource, file, filePath) = this.SelectedFile.Value;
@@ -252,7 +262,6 @@ public class FilesystemWindow : Window, IDisposable {
                             }
                         }
                     }
-
                 } else if (Util.IsKeyDown(ImGuiKey.LeftCtrl)) {
                     if (this.selectedFiles.Contains(file)) {
                         this.selectedFiles.Remove(file);

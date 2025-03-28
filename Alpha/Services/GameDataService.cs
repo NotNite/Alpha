@@ -44,7 +44,9 @@ public class GameDataService : IHostedService {
             }
 
             var options = new LuminaOptions {
-                CurrentPlatform = platform
+                CurrentPlatform = platform,
+                PanicOnSheetChecksumMismatch = false,
+                DefaultExcelLanguage = this.config.DefaultLanguage
             };
             var gameData = new AlphaGameData {
                 GameData = new GameData(Path.Combine(info.GamePath, "sqpack"), options),

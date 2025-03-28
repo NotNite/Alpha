@@ -91,7 +91,7 @@ public class IconCell : Cell {
 
         if (ImGui.BeginPopupContextItem(this.rowColStr)) {
             var path = this.texFile.FilePath;
-            ImGui.MenuItem(path, false);
+            ImGui.MenuItem(path, false, false);
 
             if (ImGui.MenuItem(CopyIconId)) ImGui.SetClipboardText(this.id.ToString());
 
