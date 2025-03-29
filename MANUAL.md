@@ -14,7 +14,7 @@ Most windows will have a `#` button that you can click for extra actions, like s
 
 The left sidebar lets you pick between sheets. There's a search box at the top to filter by sheet name. You can right click the search box to change it to full text search mode, which allows you to type a string and show the sheets that contain that string.
 
-When selecting a sheet, the search box above the sheet will filter the rows in that sheet. You can use the `$` character to write a C# query (e.g. `$Row.Name.ToString().Contains("Sprint")` in the Action sheet).
+When selecting a sheet, the search box above the sheet will filter the rows in that sheet. If you are using the .NET Runtime build (not the NativeAOT build), you can use the `$` character to write a C# query (e.g. `$Row.Name.ToString().Contains("Sprint")` in the Action sheet).
 
 Right click cells to copy their content. Cells that have certain properties in the schema (like images or links to other sheets) will be replaced with special elements you can interact with.
 
