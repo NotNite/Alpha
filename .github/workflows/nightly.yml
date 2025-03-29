@@ -13,8 +13,9 @@ jobs:
 
             - name: Publish
               run: dotnet publish Alpha/Alpha.csproj --output ./artifacts/Alpha
+            # AOT symbols are huge (>300 MB) so we'll skip them
             - name: Publish (AOT)
-              run: dotnet publish Alpha/Alpha.csproj -p:PublishAot=true -p:PublishTrimmed=true --output ./artifacts/AlphaAOT
+              run: dotnet publish Alpha/Alpha.csproj -p:PublishAot=true -p:PublishTrimmed=true -p:CopyOutputSymbolsToPublishDirectory=false --output ./artifacts/AlphaAOT
 
             - name: Upload artifact
               uses: actions/upload-artifact@v4
