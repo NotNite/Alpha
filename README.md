@@ -27,4 +27,3 @@ Alpha is a FINAL FANTASY XIV toolkit for modding, datamining, and reverse engine
 
 - Improve performance (with rendering, memory allocations, really everything)
 - Saving Excel schemas to disk & multiple schemas for different game versions
-- Custom fonts

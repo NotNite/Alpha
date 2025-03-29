@@ -38,12 +38,7 @@ public class GuiService(
     }
 
     private void Run() {
-        this.imgui = new ImGuiWrapper(
-            "Alpha",
-            config.WindowPos,
-            config.WindowSize,
-            this.iniPath
-        );
+        this.imgui = new ImGuiWrapper(config, this.iniPath);
 
         var stopwatch = Stopwatch.StartNew();
         while (!this.imgui.Exiting && !this.cts.Token.IsCancellationRequested) {

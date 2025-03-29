@@ -19,16 +19,19 @@ public class GameDataService : IHostedService {
         this.config = config;
         this.logger = logger;
 
+        var hasEdited = false;
+
         foreach (var path in this.config.GamePaths.ToList()) {
             try {
                 this.AddGamePath(path);
             } catch (Exception e) {
                 this.logger.LogError(e, "Failed to load game path info");
                 this.config.GamePaths.Remove(path);
+                hasEdited = true;
             }
         }
 
-        this.config.Save();
+        if (hasEdited) this.config.Save();
     }
 
     public void AddGamePath(string path) {

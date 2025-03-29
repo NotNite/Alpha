@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Alpha.Gui;
 using Alpha.Services.Excel;
 using Lumina.Data;
 using Serilog;
@@ -14,18 +15,24 @@ public class Config : IDisposable {
         Program.AppDir,
         "config.json"
     );
+
     [JsonIgnore]
     private static JsonSerializerOptions SerializerOptions => new() {
         WriteIndented = true,
-        IncludeFields = true
+        IncludeFields = true,
+        Converters = {new JsonStringEnumConverter()}
     };
 
     // UI
     public Vector2 WindowPos = new(100, 100);
     public Vector2 WindowSize = new(1280, 720);
+    public UiTheme Theme = UiTheme.Dark;
+    public Vector3? BackgroundColor;
+    public List<FontConfig> ExtraFonts = [];
+    public bool EnableDocking = true;
 
     // Initial setup
-    public List<string> GamePaths = new();
+    public List<string> GamePaths = [];
     public bool FtueComplete;
 
     // Excel
@@ -38,11 +45,15 @@ public class Config : IDisposable {
 
     public static Config Load() {
         Config config;
-        try {
-            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath), SerializerOptions)!;
-        } catch (Exception e) {
-            Log.Warning(e, "Failed to load config file - creating a new one");
+        if (!File.Exists(ConfigPath)) {
             config = new Config();
+        } else {
+            try {
+                config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath), SerializerOptions)!;
+            } catch (Exception e) {
+                Log.Warning(e, "Failed to load config file - creating a new one");
+                config = new Config();
+            }
         }
 
         config.Fixup();
@@ -53,9 +64,11 @@ public class Config : IDisposable {
 
     public void Fixup() {
         this.GamePaths = this.GamePaths.Where(dir => Directory.Exists(Path.Combine(dir, "sqpack"))).ToList();
+        this.ExtraFonts = this.ExtraFonts.Where(path => !string.IsNullOrWhiteSpace(path.Path)).ToList();
     }
 
     public void Save() {
+        //Log.Debug("Saving config");
         File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, SerializerOptions));
     }
 

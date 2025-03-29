@@ -102,7 +102,7 @@ public class WindowManagerService(
             }
         }
 
-        ImGui.DockSpaceOverViewport();
+        ImGui.DockSpaceOverViewport(ImGuiDockNodeFlags.PassthruCentralNode);
         foreach (var window in sortedWindows.Where(w => w.Scene == scene)) {
             window.InternalDraw();
         }

@@ -9,13 +9,19 @@ using Serilog;
 namespace Alpha.Gui;
 
 public class Components {
+    public static void DrawHelpTooltip(string text, bool sameLine = true) {
+        if (sameLine) ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip(text);
+    }
+
     public static void DrawGamePaths(GameDataService gameData) {
         if (ImGui.Button("Add game path")) {
             var dir = NFD.PickFolder(gameData.TryGamePaths());
             if (!string.IsNullOrEmpty(dir)) gameData.AddGamePath(dir);
         }
 
-        if (ImGui.BeginTable("Game Paths Table", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit)) {
+        if (ImGui.BeginTable("Game Paths Table", 3, ImGuiTableFlags.SizingFixedFit)) {
             ImGui.TableSetupColumn("Path");
             ImGui.TableSetupColumn("Version");
             ImGui.TableSetupColumn("Actions");
@@ -73,7 +79,7 @@ public class Components {
     public static void DrawPathLists(PathListService pathList) {
         var disabled = pathList.IsDownloading;
         if (disabled) ImGui.BeginDisabled();
-        if (ImGui.Button("Download path list"))
+        if (ImGui.Button("Download path list")) {
             Task.Run(async () => {
                 try {
                     await pathList.DownloadResLogger(true);
@@ -81,9 +87,12 @@ public class Components {
                     Log.Error(e, "Failed to download path list");
                 }
             });
+        }
         if (disabled) ImGui.EndDisabled();
+        DrawHelpTooltip(
+            "Paths in the filesystem are crowdsourced by the community. This will download or update paths from ResLogger2.");
 
-        if (ImGui.BeginTable("Path Lists Table", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit)) {
+        if (ImGui.BeginTable("Path Lists Table", 2, ImGuiTableFlags.SizingFixedFit)) {
             ImGui.TableSetupColumn("Name");
             ImGui.TableSetupColumn("Actions");
             ImGui.TableHeadersRow();

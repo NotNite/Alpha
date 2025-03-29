@@ -18,6 +18,7 @@ public unsafe class ImGuiWrapper : IDisposable {
     private readonly NativeContext context;
     private readonly GL gl;
     private readonly ImGuiContext* imguiContext;
+    private readonly Vector3 backgroundColor;
 
     public bool Exiting;
 
@@ -38,13 +39,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         }
     }
 
-    public ImGuiWrapper(
-        string title,
-        Vector2 pos,
-        Vector2 size,
-        string iniPath,
-        byte[]? iconData = null
-    ) {
+    public ImGuiWrapper(Config config, string iniPath) {
         this.sdl = Sdl.GetApi();
         this.sdl.Init(Sdl.InitEvents + Sdl.InitVideo);
         const WindowFlags flags = WindowFlags.Opengl
@@ -52,25 +47,12 @@ public unsafe class ImGuiWrapper : IDisposable {
                                   | WindowFlags.AllowHighdpi;
 
         this.window = this.sdl.CreateWindow(
-            title,
-            (int) pos.X, (int) pos.Y,
-            (int) size.X, (int) size.Y,
+            "Alpha",
+            (int) config.WindowPos.X, (int) config.WindowPos.Y,
+            (int) config.WindowSize.X, (int) config.WindowSize.Y,
             (uint) flags
         );
         this.windowId = this.sdl.GetWindowID(this.window);
-
-        if (iconData != null) {
-            var widthHeight = iconData.Length / 4;
-            fixed (byte* dataPtr = iconData) {
-                // Assume uniform width/height
-                var surface = this.sdl.CreateRGBSurfaceFrom(
-                    dataPtr,
-                    widthHeight, widthHeight, 32, widthHeight * 4,
-                    0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
-                this.sdl.SetWindowIcon(this.window, surface);
-                this.sdl.FreeSurface(surface);
-            }
-        }
 
         this.context = new NativeContext(this.sdl, this.window);
         this.gl = new GL(this.context);
@@ -79,20 +61,65 @@ public unsafe class ImGuiWrapper : IDisposable {
         ImGui.SetCurrentContext(this.imguiContext);
         ImGuiImplSDL2.SetCurrentContext(this.imguiContext);
 
+        // Apply user themes
+        switch (config.Theme) {
+            case UiTheme.Light: {
+                ImGui.StyleColorsLight();
+                this.backgroundColor = new Vector3(0.85f, 0.85f, 0.85f);
+                break;
+            }
+
+            case UiTheme.Dark:
+            default: {
+                ImGui.StyleColorsDark();
+                this.backgroundColor = new Vector3(0.15f, 0.15f, 0.15f);
+                break;
+            }
+        }
+
+        if (config.BackgroundColor is { } bg) this.backgroundColor = bg;
+
         var builder = new ImGuiFontBuilder();
-        builder
-            .AddDefaultFont()
-            .SetOption(config => { config.FontBuilderFlags |= (uint) ImGuiFreeTypeBuilderFlags.LoadColor; });
+        builder.Config.FontBuilderFlags |= (uint) ImGuiFreeTypeBuilderFlags.LoadColor;
 
         var io = ImGui.GetIO();
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+        if (config.EnableDocking) io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         io.IniFilename = (byte*) Marshal.StringToHGlobalAnsi(iniPath + "\0");
 
-        const string cjkFont = "C:/Windows/Fonts/msyh.ttc";
-        if (File.Exists(cjkFont)) {
-            var ranges = io.Fonts.GetGlyphRangesJapanese();
-            builder.AddFontFromFileTTF(cjkFont, 13f, ranges);
+        // Specify some fonts to load with the Japanese ranges, some without
+        var defaultRanges = io.Fonts.GetGlyphRangesDefault();
+        var japaneseRanges = io.Fonts.GetGlyphRangesJapanese();
+        var loadedFirstFont = false;
+
+        // ReSharper disable once MoveLocalFunctionAfterJumpStatement
+        void SetMergeMode() {
+            // MergeMode can't be set until the first font is loaded
+            if (!loadedFirstFont) {
+                builder.Config.MergeMode = true;
+                loadedFirstFont = true;
+            }
+        }
+
+        // Apply user fonts
+        foreach (var font in config.ExtraFonts) {
+            if (File.Exists(font.Path)) {
+                builder.AddFontFromFileTTF(font.Path, font.Size, font.JapaneseGlyphs ? japaneseRanges : defaultRanges);
+                SetMergeMode();
+            }
+        }
+
+        // Fallback fonts
+        builder.AddDefaultFont();
+        SetMergeMode();
+
+        // In case the user doesn't provide a font with Japanese glyphs, let's add one for them
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT) {
+            var hasJpFont = config.ExtraFonts.Any(x => x.JapaneseGlyphs);
+            const string cjkFont = "C:/Windows/Fonts/msgothic.ttc";
+            if (!hasJpFont && File.Exists(cjkFont)) {
+                builder.AddFontFromFileTTF(cjkFont, 13f, japaneseRanges);
+            }
         }
 
         builder.Build();
@@ -132,9 +159,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         this.sdl.GLMakeCurrent(this.window, (void*) this.context.Handle);
         this.gl.BindFramebuffer(GLFramebufferTarget.Framebuffer, 0);
 
-        const float grey = 40 / 255f;
-        this.gl.ClearColor(grey, grey, grey, 1f);
-
+        this.gl.ClearColor(this.backgroundColor.X, this.backgroundColor.Y, this.backgroundColor.Z, 1);
         // ReSharper disable once BitwiseOperatorOnEnumWithoutFlags
         this.gl.Clear(GLClearBufferMask.ColorBufferBit | GLClearBufferMask.DepthBufferBit);
 
@@ -146,13 +171,6 @@ public unsafe class ImGuiWrapper : IDisposable {
 
         this.sdl.GLSwapWindow(this.window);
         this.sdl.GLSetSwapInterval(1);
-    }
-
-    public float GetMonitorRefreshRate() {
-        var displayIndex = this.sdl.GetWindowDisplayIndex(this.window);
-        DisplayMode mode;
-        this.sdl.GetDisplayMode(displayIndex, 0, &mode);
-        return mode.RefreshRate;
     }
 
     public void Dispose() {
