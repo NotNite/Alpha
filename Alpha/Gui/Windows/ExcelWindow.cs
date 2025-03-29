@@ -589,6 +589,7 @@ public class ExcelWindow : Window {
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
+                ImGui.PushID(i);
 
                 var highlighted = this.highlightRow is not null
                                   && this.highlightRow.Value.Row == rowId
@@ -611,7 +612,7 @@ public class ExcelWindow : Window {
                     str += $".{row.Subrow}";
                 }
                 ImGui.TextUnformatted(str);
-                if (ImGui.BeginPopupContextItem($"##ExcelModule_Row_{rowId}")) {
+                if (ImGui.BeginPopupContextItem("##ExcelModule_Row")) {
                     if (ImGui.Selectable("Copy row ID")) {
                         ImGui.SetClipboardText(str);
                     }
@@ -624,7 +625,13 @@ public class ExcelWindow : Window {
                 for (var col = 0; col < colCount; col++) {
                     var prev = ImGui.GetCursorPosY();
 
-                    this.DrawCell(this.selectedSheet, rowId, subrowId, colMappings[col]);
+                    ImGui.PushID(col);
+                    try {
+                        this.DrawCell(this.selectedSheet, rowId, subrowId, colMappings[col]);
+                    } catch (Exception e) {
+                        this.logger.LogError(e, "Failed to draw cell {RowId} {SubrowId}", rowId, subrowId);
+                    }
+                    ImGui.PopID();
 
                     var next = ImGui.GetCursorPosY();
                     if (this.itemHeight is not null) {
@@ -640,6 +647,8 @@ public class ExcelWindow : Window {
 
                     if (col < colCount - 1) ImGui.TableNextColumn();
                 }
+
+                ImGui.PopID();
             }
         }
         if (shouldPopColor) ImGui.PopStyleColor(2);
