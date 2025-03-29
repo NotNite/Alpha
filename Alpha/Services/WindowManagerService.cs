@@ -103,6 +103,7 @@ public class WindowManagerService(
             }
         }
 
+        ImGui.DockSpaceOverViewport();
         foreach (var window in sortedWindows.Where(w => w.Scene == scene)) {
             window.InternalDraw();
         }

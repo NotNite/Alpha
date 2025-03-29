@@ -86,6 +86,7 @@ public unsafe class ImGuiWrapper : IDisposable {
 
         var io = ImGui.GetIO();
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         io.IniFilename = (byte*) Marshal.StringToHGlobalAnsi(iniPath + "\0");
 
         const string cjkFont = "C:/Windows/Fonts/msyh.ttc";
