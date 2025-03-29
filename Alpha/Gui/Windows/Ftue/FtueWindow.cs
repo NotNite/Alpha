@@ -26,7 +26,7 @@ public class FtueWindow : Window {
 
         this.IsOpen = true;
         this.Scene = GuiService.GuiScene.Ftue;
-        this.Flags = ImGuiWindowFlags.NoDecoration;
+        this.Flags |= ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoDocking;
     }
 
     public override void PreDraw() {
