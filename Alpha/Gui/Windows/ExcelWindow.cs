@@ -616,6 +616,9 @@ public class ExcelWindow : Window {
                     if (ImGui.Selectable("Copy row ID")) {
                         ImGui.SetClipboardText(str);
                     }
+                    if (ImGui.Selectable("Highlight row")) {
+                        this.highlightRow = (row.Row, row.Subrow);
+                    }
 
                     ImGui.EndPopup();
                 }
