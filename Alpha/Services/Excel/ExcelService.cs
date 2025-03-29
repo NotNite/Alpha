@@ -1,4 +1,5 @@
-﻿using Alpha.Game;
+﻿using System.Collections.Concurrent;
+using Alpha.Game;
 using Alpha.Gui.Windows;
 using Alpha.Services.Excel.Cells;
 using Alpha.Services.Excel.ExdSchema;
@@ -11,7 +12,7 @@ namespace Alpha.Services.Excel;
 public class ExcelService {
     public AlphaGameData? GameData;
     public readonly Dictionary<string, IAlphaSheet?> SheetsCache = new();
-    public readonly Dictionary<string, ISheetDefinition?> SheetDefinitions = new();
+    public readonly ConcurrentDictionary<string, ISheetDefinition?> SheetDefinitions = new();
     public string[] Sheets = [];
 
     private readonly ISchemaResolver? resolver;
