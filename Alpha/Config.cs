@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alpha.Gui;
 using Alpha.Services.Excel;
 using Lumina.Data;
@@ -15,13 +16,6 @@ public class Config : IDisposable {
         Program.AppDir,
         "config.json"
     );
-
-    [JsonIgnore]
-    private static JsonSerializerOptions SerializerOptions => new() {
-        WriteIndented = true,
-        IncludeFields = true,
-        Converters = {new JsonStringEnumConverter()}
-    };
 
     // UI
     public Vector2 WindowPos = new(100, 100);
@@ -49,7 +43,8 @@ public class Config : IDisposable {
             config = new Config();
         } else {
             try {
-                config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath), SerializerOptions)!;
+                config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath),
+                    ConfigJsonSerializerContext.Default.Config)!;
             } catch (Exception e) {
                 Log.Warning(e, "Failed to load config file - creating a new one");
                 config = new Config();
@@ -69,14 +64,14 @@ public class Config : IDisposable {
 
     public void Save() {
         //Log.Debug("Saving config");
-        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, SerializerOptions));
+        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, ConfigJsonSerializerContext.Default.Config));
     }
 
     public void Dispose() {
         // If we edited the config file on disk, skip saving it so we don't overwrite it
         try {
-            var newConfig = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(ConfigPath))!;
-            var oldConfig = JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(this))!;
+            var newConfig = JsonNode.Parse(File.ReadAllText(ConfigPath));
+            var oldConfig = JsonNode.Parse(JsonSerializer.Serialize(this, ConfigJsonSerializerContext.Default.Config));
             if (!JsonNode.DeepEquals(newConfig, oldConfig)) return;
         } catch {
             // ignored
@@ -85,3 +80,11 @@ public class Config : IDisposable {
         this.Save();
     }
 }
+
+[JsonSourceGenerationOptions(WriteIndented = true, IncludeFields = true, Converters = [
+    typeof(JsonStringEnumConverter<UiTheme>),
+    typeof(JsonStringEnumConverter<Language>),
+    typeof(JsonStringEnumConverter<SchemaProvider>)
+])]
+[JsonSerializable(typeof(Config))]
+public partial class ConfigJsonSerializerContext : JsonSerializerContext;

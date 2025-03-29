@@ -10,6 +10,14 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace Alpha.Utils;
 
 public static class Util {
+    public static bool IsNativeAot() {
+#if NATIVEAOT
+        return true;
+#else
+        return false;
+#endif
+    }
+
     public static void OpenLink(string url) {
         switch (Environment.OSVersion.Platform) {
             case PlatformID.Unix:

@@ -1,5 +1,4 @@
 on: [push, pull_request]
-
 name: Nightly builds
 
 jobs:
@@ -11,14 +10,19 @@ jobs:
             - uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: 9.0.x
-            - name: Install dependencies
-              run: dotnet restore
-            - name: Build
-              run: dotnet build --configuration Release --no-restore
+
             - name: Publish
-              run: dotnet publish Alpha/Alpha.csproj --self-contained false --output ./artifacts
-            - name: Upload artifacts
+              run: dotnet publish Alpha/Alpha.csproj --output ./artifacts/Alpha
+            - name: Publish (AOT)
+              run: dotnet publish Alpha/Alpha.csproj -p:PublishAot=true -p:PublishTrimmed=true --output ./artifacts/AlphaAOT
+
+            - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
                   name: Alpha
-                  path: ./artifacts
+                  path: ./artifacts/Alpha
+            - name: Upload artifact (AOT)
+              uses: actions/upload-artifact@v4
+              with:
+                  name: AlphaAOT
+                  path: ./artifacts/AlphaAOT

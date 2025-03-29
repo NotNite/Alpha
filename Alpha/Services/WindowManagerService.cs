@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Reflection;
 using Alpha.Gui;
 using Alpha.Gui.Windows;
@@ -11,6 +12,8 @@ using Serilog;
 
 namespace Alpha.Services;
 
+#pragma warning disable IL2046
+
 public class WindowManagerService(
     GuiService gui,
     Config config,
@@ -22,11 +25,12 @@ public class WindowManagerService(
     private bool ready;
     private Dictionary<Type, int> windowIds = new();
 
+    [RequiresUnreferencedCode("Calls System.Reflection.Assembly.GetTypes()")]
     public Task StartAsync(CancellationToken cancellationToken) {
-        var windows = Assembly.GetExecutingAssembly().GetTypes()
+        var reflectedWindows = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsSubclassOf(typeof(Window)))
             .Where(t => t.GetCustomAttribute<WindowAttribute>() is not null);
-        foreach (var window in windows) this.RegisterWindow(window);
+        foreach (var window in reflectedWindows) this.RegisterWindow(window);
 
         gui.OnDraw += this.Draw;
 

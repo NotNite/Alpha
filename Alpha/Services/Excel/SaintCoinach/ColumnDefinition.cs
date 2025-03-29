@@ -36,9 +36,12 @@ internal class RowDefinitionJsonConverter : JsonConverter<ColumnDefinition> {
         var type = jsonDocument.RootElement.TryGetProperty("type", out var prop) ? prop.GetString() : null;
 
         return type switch {
-            "repeat" => jsonDocument.Deserialize(typeof(RepeatColumnDefinition)) as ColumnDefinition,
-            "group" => jsonDocument.Deserialize(typeof(GroupColumnDefinition)) as ColumnDefinition,
-            _ => jsonDocument.Deserialize(typeof(SingleColumnDefinition)) as ColumnDefinition
+            "repeat" => jsonDocument.Deserialize<RepeatColumnDefinition>(
+                SaintCoinachJsonSerializerContext.Default.RepeatColumnDefinition),
+            "group" => jsonDocument.Deserialize<GroupColumnDefinition>(
+                SaintCoinachJsonSerializerContext.Default.GroupColumnDefinition),
+            _ => jsonDocument.Deserialize<SingleColumnDefinition>(
+                SaintCoinachJsonSerializerContext.Default.SingleColumnDefinition)
         };
     }
 

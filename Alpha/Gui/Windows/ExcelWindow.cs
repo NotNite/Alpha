@@ -1,5 +1,8 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Alpha.Game;
 using Alpha.Services;
 using Alpha.Services.Excel;
@@ -13,6 +16,9 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.Extensions.Logging;
 
 namespace Alpha.Gui.Windows;
+
+#pragma warning disable IL2060
+#pragma warning disable IL2075
 
 [Window("Excel")]
 public class ExcelWindow : Window {
@@ -361,7 +367,14 @@ public class ExcelWindow : Window {
         this.contentFilterCts = new CancellationTokenSource();
 
         if (this.contentFilter.StartsWith('$')) {
-            this.ContentFilterScript(this.contentFilter[1..]);
+            var sliced = this.contentFilter[1..];
+
+            if (Util.IsNativeAot()) {
+                this.logger.LogWarning("Script filtering not supported with NativeAOT");
+                this.ContentFilterSimple(sliced);
+            } else {
+                this.ContentFilterScript(sliced);
+            }
         } else {
             this.ContentFilterSimple(this.contentFilter);
         }
@@ -401,6 +414,12 @@ public class ExcelWindow : Window {
         }, this.contentFilterCts!.Token);
     }
 
+    [UnconditionalSuppressMessage("Trimming",
+        "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code",
+        Justification = "Not called on AOT")]
+    [UnconditionalSuppressMessage("AOT",
+        "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.",
+        Justification = "Not called on AOT")]
     private void ContentFilterScript(string script) {
         this.contentFilterError = null;
         this.filteredRows = new();

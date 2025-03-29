@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using Alpha.Game;
 using Lumina;
 using Lumina.Data.Files;
@@ -79,7 +80,7 @@ public class GameDataService : IHostedService {
             $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.xlcore/ffxiv"
         ];
 
-        var xlGamePath = ReadXlGamePath();
+        var xlGamePath = this.ReadXlGamePath();
         if (xlGamePath is not null) dirs.Insert(0, xlGamePath);
 
         foreach (var dir in dirs) {
@@ -100,10 +101,11 @@ public class GameDataService : IHostedService {
                 "launcherConfigV3.json");
             if (File.Exists(path)) {
                 try {
-                    var config = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
-                    var gamePath = config?["GamePath"];
-                    if (gamePath is not null && Directory.Exists(gamePath)) {
-                        return gamePath;
+                    var jsonDocument = JsonNode.Parse(File.ReadAllText(path));
+                    var gamePath = jsonDocument?["GamePath"];
+                    if (gamePath is not null && gamePath.GetValueKind() == JsonValueKind.String) {
+                        var gamePathStr = gamePath.ToString();
+                        if (Directory.Exists(gamePathStr)) return gamePathStr;
                     }
                 } catch {
                     // ignored

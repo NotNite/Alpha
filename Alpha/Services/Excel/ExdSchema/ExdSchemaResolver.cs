@@ -1,4 +1,6 @@
 ﻿using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.Serialization;
@@ -12,7 +14,7 @@ public class ExdSchemaResolver : ISchemaResolver {
     // lol this sucks
     private readonly ILogger<ExdSchemaResolver> logger =
         Program.Host.Services.GetRequiredService<ILogger<ExdSchemaResolver>>();
-    private readonly IDeserializer deserializer = new DeserializerBuilder()
+    private readonly IDeserializer deserializer = new StaticDeserializerBuilder(new ExdSchemaStaticContext())
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
@@ -20,7 +22,8 @@ public class ExdSchemaResolver : ISchemaResolver {
         Task.Run(async () => {
             try {
                 var resp = await Program.HttpClient.GetFromJsonAsync<GitHubApiResponse>(
-                               "https://api.github.com/repos/xivdev/EXDSchema/contents/schemas/latest");
+                               "https://api.github.com/repos/xivdev/EXDSchema/contents/schemas/latest",
+                               GitHubApiJsonSerializerContext.Default.GitHubApiResponse);
                 this.sha = resp?.Sha;
             } catch (Exception e) {
                 this.logger.LogError(e, "Failed to get latest EXDSchema sha");
@@ -36,6 +39,13 @@ public class ExdSchemaResolver : ISchemaResolver {
         var str = await Program.HttpClient.GetStringAsync(url);
         return this.deserializer.Deserialize<ExdSchemaSheetDefinition>(str);
     }
-
-    public record GitHubApiResponse(string Sha);
 }
+
+public record GitHubApiResponse(string Sha);
+
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+[JsonSerializable(typeof(GitHubApiResponse))]
+public partial class GitHubApiJsonSerializerContext : JsonSerializerContext;
+
+[YamlStaticContext]
+public partial class ExdSchemaStaticContext;

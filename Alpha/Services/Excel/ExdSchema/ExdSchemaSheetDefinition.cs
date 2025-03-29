@@ -1,19 +1,21 @@
 ﻿using Alpha.Services.Excel.Cells;
 using Serilog;
+using YamlDotNet.Serialization;
 
 // ReSharper disable CollectionNeverUpdated.Global
 
 namespace Alpha.Services.Excel.ExdSchema;
 
+[YamlSerializable]
 public class ExdSchemaSheetDefinition : ISheetDefinition {
-    public required string Name { get; init; }
-    public string? DisplayField { get; init; }
-    public List<Field>? Fields { get; init; }
-    public List<Field>? PendingFields { get; init; }
-    public Dictionary<string, List<string>>? Relations { get; init; }
+    public string Name { get; set; } = string.Empty;
+    public string? DisplayField { get; set; }
+    public List<Field>? Fields { get; set; }
+    public List<Field>? PendingFields { get; set; }
+    public Dictionary<string, List<string>>? Relations { get; set; }
 
     public uint? DefaultColumn { get; set; }
-    public bool Ready { get; private set; }
+    public bool Ready { get; set; }
 
     private readonly List<Field> flatFields = [];
     private readonly List<uint> columns = [];

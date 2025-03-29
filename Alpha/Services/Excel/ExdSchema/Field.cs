@@ -3,6 +3,7 @@ using YamlDotNet.Serialization;
 
 namespace Alpha.Services.Excel.ExdSchema;
 
+[YamlSerializable]
 public class Field {
     [YamlMember(Order = 0)] public string? Name { get; set; }
 
@@ -27,11 +28,12 @@ public class Field {
     }
 }
 
+[YamlSerializable]
 public enum FieldType {
     Scalar,
     Link,
     Array,
     Icon,
     ModelId,
-    Color,
+    Color
 }

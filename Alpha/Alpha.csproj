@@ -7,19 +7,27 @@
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DpiAwareness>PerMonitorV2</DpiAwareness>
+
+        <DefineConstants Condition="'$(PublishAot)'=='true'">$(DefineConstants);NATIVEAOT</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- microsoft -->
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.13.0"/>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.3"/>
 
+        <!-- FFXIV -->
         <PackageReference Include="Lumina" Version="5.6.1"/>
         <PackageReference Include="Lumina.Excel" Version="7.2.1"/>
+        <TrimmerRootAssembly Include="Lumina"/>
+        <TrimmerRootAssembly Include="Lumina.Excel"/>
 
+        <!-- logging -->
         <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0"/>
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>
         <PackageReference Include="Serilog.Sinks.File" Version="6.0.0"/>
 
+        <!-- UI -->
         <PackageReference Include="Hexa.NET.ImGui" Version="2.2.6"/>
         <PackageReference Include="Hexa.NET.Utilities" Version="2.2.2"/>
         <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.14"/>
@@ -28,10 +36,13 @@
         <PackageReference Include="Hexa.NET.OpenGL3" Version="1.1.0"/>
         <PackageReference Include="Silk.NET.SDL" Version="2.22.0"/>
 
+        <!-- misc stuff -->
         <PackageReference Include="NativeFileDialog.Extended" Version="1.2.0"/>
-
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7"/>
 
+        <!-- serialization -->
+        <PackageReference Include="System.Text.Json" Version="9.0.3"/>
         <PackageReference Include="YamlDotNet" Version="16.3.0"/>
+        <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.3.0"/> <!-- idk if this is official lol -->
     </ItemGroup>
 </Project>
