@@ -76,8 +76,7 @@ public class WindowManagerService(
                         var attr = windowType.GetCustomAttribute<WindowAttribute>()!;
                         if (!attr.ShowInMenu) continue;
 
-                        var isOpen = this.windows.Any(w => w.Window.GetType() == windowType && w.Window.IsOpen);
-                        if (ImGui.MenuItem(attr.Name, string.Empty, isOpen)) {
+                        if (ImGui.MenuItem(attr.Name, string.Empty, false)) {
                             if (attr.SingleInstance) {
                                 var instanceWindow =
                                     this.windows
