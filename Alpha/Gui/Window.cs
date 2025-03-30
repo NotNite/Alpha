@@ -16,6 +16,7 @@ public abstract class Window {
     public Vector2? InitialSize;
     public AlphaGameData? GameData;
     public int Priority = 0;
+    public bool ShouldSetSize = true;
 
     public readonly string Name;
     public int Id;
@@ -24,11 +25,12 @@ public abstract class Window {
         this.Name = this.GetType().GetCustomAttribute<WindowAttribute>()?.Name ?? this.GetType().Name;
     }
 
+    public virtual bool ShouldDraw() => true;
     public virtual void PreDraw() { }
     public virtual void PostDraw() { }
 
     public void InternalDraw() {
-        if (this.IsOpen) {
+        if (this.IsOpen && this.ShouldDraw()) {
             try {
                 ImGui.PushID(this.Id.ToString());
 
@@ -38,8 +40,11 @@ public abstract class Window {
                     Log.Error(e, "Error in PreDraw for window {Name}", this.Name);
                 }
 
-                ImGui.SetNextWindowSizeConstraints(this.MinSize, this.MaxSize);
-                ImGui.SetNextWindowSize(this.InitialSize ?? this.MinSize, ImGuiCond.Appearing);
+                if (this.ShouldSetSize) {
+                    ImGui.SetNextWindowSizeConstraints(this.MinSize, this.MaxSize);
+                    ImGui.SetNextWindowSize(this.InitialSize ?? this.MinSize, ImGuiCond.Appearing);
+                }
+
                 if (ImGui.Begin(this.Name + "##" + this.Id, ref this.IsOpen, this.Flags)) {
                     try {
                         this.Draw();

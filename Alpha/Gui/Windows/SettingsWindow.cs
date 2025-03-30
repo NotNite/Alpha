@@ -29,6 +29,7 @@ public class SettingsWindow : Window {
             this.DrawTab("Path Lists", this.DrawPathListsTab);
             this.DrawTab("Excel", this.DrawExcelTab);
             this.DrawTab("UI", this.DrawUiTab);
+            this.DrawTab("Misc", this.DrawMiscTab);
 
             ImGui.EndTabBar();
         }
@@ -161,6 +162,17 @@ public class SettingsWindow : Window {
                 ImGui.PopID();
             }
         }
+
+        if (anyChanged) this.config.Save();
+    }
+
+    private void DrawMiscTab() {
+        var anyChanged = false;
+
+        if (ImGui.Checkbox("Check for updates", ref this.config.DoUpdateChecking)) {
+            anyChanged = true;
+        }
+        Components.DrawHelpTooltip("Every day, Alpha will reach out to the GitHub API to check for version updates.");
 
         if (anyChanged) this.config.Save();
     }

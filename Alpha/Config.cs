@@ -29,6 +29,10 @@ public class Config : IDisposable {
     public List<string> GamePaths = [];
     public bool FtueComplete;
 
+    public bool DoUpdateChecking = true;
+    public DateTime? UpdateCheckTime;
+    public Version? UpdateCheckVersion;
+
     // Excel
     public bool SortByOffsets;
     public bool AlwaysShowOffsets;
@@ -60,6 +64,8 @@ public class Config : IDisposable {
     public void Fixup() {
         this.GamePaths = this.GamePaths.Where(dir => Directory.Exists(Path.Combine(dir, "sqpack"))).ToList();
         this.ExtraFonts = this.ExtraFonts.Where(path => !string.IsNullOrWhiteSpace(path.Path)).ToList();
+        if (this.UpdateCheckVersion != null && this.UpdateCheckVersion <= Program.Version)
+            this.UpdateCheckVersion = null;
     }
 
     public void Save() {

@@ -35,6 +35,8 @@ public class WindowManagerService(
         gui.OnDraw += this.Draw;
 
         if (!config.FtueComplete) this.CreateWindow<FtueWindow>();
+        if (config.DoUpdateChecking) this.CreateWindow<UpdateCheckWindow>();
+
         this.ready = true;
         return Task.CompletedTask;
     }

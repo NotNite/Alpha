@@ -44,6 +44,7 @@ public class Program {
         builder.Services.AddSingletonHostedService<GuiService>();
         builder.Services.AddSingletonHostedService<WindowManagerService>();
         builder.Services.AddSingletonHostedService<GameDataService>();
+        builder.Services.AddSingletonHostedService<UpdateCheckService>();
         builder.Services.AddSingleton<PathListService>();
 
         builder.Services.AddScoped<PathService>();
@@ -55,6 +56,7 @@ public class Program {
         builder.Services.AddScoped<ExcelWindow>();
         builder.Services.AddScoped<SettingsWindow>();
         builder.Services.AddScoped<FilesystemWindow>();
+        builder.Services.AddScoped<UpdateCheckWindow>();
 
         Log.Information("Alpha is starting, please wait... {Version}", Version);
         Host = builder.Build();
