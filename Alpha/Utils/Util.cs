@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text;
 using Hexa.NET.ImGui;
 using Lumina.Data.Files;
 using NativeFileDialog.Extended;
@@ -40,11 +41,12 @@ public static class Util {
 
     public static (uint Folder, uint File) GetHash(string path) {
         path = path.ToLower();
-        var folder = path.AsSpan(0, path.LastIndexOf('/'));
-        var file = path.AsSpan(path.LastIndexOf('/') + 1);
+        var bytes = Encoding.UTF8.GetBytes(path); // `char` is utf16 lol
+        var folder = bytes.AsSpan(0, path.LastIndexOf('/'));
+        var file = bytes.AsSpan(path.LastIndexOf('/') + 1);
 
-        var folderHash = Lumina.Misc.Crc32.Get(MemoryMarshal.Cast<char, byte>(folder));
-        var fileHash = Lumina.Misc.Crc32.Get(MemoryMarshal.Cast<char, byte>(file));
+        var folderHash = Lumina.Misc.Crc32.Get(folder);
+        var fileHash = Lumina.Misc.Crc32.Get(file);
         return (folderHash, fileHash);
     }
 
