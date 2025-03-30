@@ -62,6 +62,7 @@ public class SettingsWindow : Window {
         if (ImGui.Checkbox("Always show offsets", ref this.config.AlwaysShowOffsets)) anyChanged = true;
         if (ImGui.Checkbox("Highlight links", ref this.config.HighlightLinks)) anyChanged = true;
         if (ImGui.Checkbox("Keep images at line height", ref this.config.LineHeightImages)) anyChanged = true;
+        if (ImGui.Checkbox("Display row IDs as hexadecimal", ref this.config.RowIdAsHex)) anyChanged = true;
 
         {
             Language[] languages = [Language.English, Language.Japanese, Language.German, Language.French];
@@ -172,7 +173,8 @@ public class SettingsWindow : Window {
         if (ImGui.Checkbox("Check for updates", ref this.config.DoUpdateChecking)) {
             anyChanged = true;
         }
-        Components.DrawHelpTooltip("Every day, Alpha will reach out to the GitHub API to check for version updates.");
+        Components.DrawHelpTooltip(
+            "Every day, Alpha will reach out to the GitHub API to check for version updates.");
 
         if (anyChanged) this.config.Save();
     }

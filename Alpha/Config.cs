@@ -38,6 +38,7 @@ public class Config : IDisposable {
     public bool AlwaysShowOffsets;
     public bool HighlightLinks = true;
     public bool LineHeightImages;
+    public bool RowIdAsHex;
     public Language DefaultLanguage = Language.English;
     public SchemaProvider SchemaProvider = SchemaProvider.ExdSchema;
 

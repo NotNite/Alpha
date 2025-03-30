@@ -626,10 +626,12 @@ public class ExcelWindow : Window {
                 }
                 if (highlighted) shouldPopColor = true;
 
-                var str = row.Row.ToString();
-                if (row.Subrow is not null) {
-                    str += $".{row.Subrow}";
+                var rowIdAsHex = this.config.RowIdAsHex;
+                var str = rowIdAsHex ? $"0x{row.Row:X}" : row.Row.ToString();
+                if (row.Subrow is { } subrow) {
+                    str += rowIdAsHex ? $".0x{subrow:X}" : $".{subrow}";
                 }
+
                 ImGui.TextUnformatted(str);
                 if (ImGui.BeginPopupContextItem("##ExcelModule_Row")) {
                     if (ImGui.Selectable("Copy row ID")) {
