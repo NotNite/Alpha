@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Alpha.Game;
 using Alpha.Services;
 using Alpha.Utils;
@@ -188,6 +188,12 @@ public class FilesystemWindow : Window, IDisposable {
                 var filename = Path.GetFileName(filePath);
                 var dialogResult = NFD.SaveDialog(string.Empty, filename);
                 if (!string.IsNullOrWhiteSpace(dialogResult)) System.IO.File.WriteAllBytes(dialogResult, resource.Data);
+            }
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Copy path")) {
+                ImGui.SetClipboardText(filePath);
             }
 
             ImGui.SameLine();
