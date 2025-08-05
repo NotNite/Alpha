@@ -86,7 +86,16 @@ public class GuiService(
             return tex;
         } else {
             var size = new Vector2(file.Header.Width, file.Header.Height);
-            var handle = this.imgui.CreateTexture(file.ImageData, file.Header.Width, file.Header.Height);
+
+            byte[] data;
+            try {
+                data = file.ImageData;
+            } catch {
+                // BC5/BC7, probably
+                data = new byte[file.Header.Width * file.Header.Height * 4];
+            }
+
+            var handle = this.imgui.CreateTexture(data, file.Header.Width, file.Header.Height);
             return this.textures[file.FilePath] = new Texture {
                 Handle = handle,
                 Size = size
