@@ -13,20 +13,14 @@
       in {
         packages.default = pkgs.buildDotnetModule {
           pname = "alpha";
-          version = "1.0.0.0";
+          version = "2.0.0.5";
           src = ./.;
           projectFile = "Alpha/Alpha.csproj"; # don't try to build Omega
           nugetDeps =
             ./deps.nix; # to update: `nix build .#default.passthru.fetch-deps && ./result deps.nix`
-          dotnet-sdk = pkgs.dotnetCorePackages.sdk_8_0;
-          dotnet-runtime = pkgs.dotnetCorePackages.runtime_8_0;
-          postConfigure = ''
-            # Fixes execution of native protoc binaries during build
-            for binary in "$HOME"/.nuget/packages/grpc.tools/2.54.0/tools/linux_*/{grpc_csharp_plugin,protoc}; do
-              patchelf --set-interpreter "$(cat $NIX_BINTOOLS/nix-support/dynamic-linker)" "$binary"
-            done
-          '';
-          runtimeDeps = [ pkgs.SDL2 pkgs.glib pkgs.gtk3 ];
+          dotnet-sdk = pkgs.dotnetCorePackages.sdk_9_0;
+          dotnet-runtime = pkgs.dotnetCorePackages.runtime_9_0;
+          runtimeDeps = [ pkgs.SDL2 pkgs.glib pkgs.gtk3 pkgs.glfw pkgs.vulkan-loader ];
           nativeBuildInputs = [ pkgs.bintools pkgs.wrapGAppsHook ];
           meta = { mainProgram = "Alpha"; };
         };
