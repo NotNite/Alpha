@@ -150,11 +150,11 @@ public class SettingsWindow : Window {
                     anyChanged = true;
                 }
 
-                if (ImGui.Checkbox("Use Japanese Glyphs", ref font.JapaneseGlyphs)) {
+                if (ImGui.Checkbox("Use as Fallback Only", ref font.FallbackOnly)) {
                     anyChanged = true;
                 }
                 Components.DrawHelpTooltip(
-                    "Check this to have the font apply to Japanese glyphs instead of only the Latin glyphs.");
+                    "Check this to have the font only apply when needed (e.g. Japanese glyphs).");
 
                 if (ImGui.Button("Remove")) {
                     this.config.ExtraFonts.RemoveAt(idx);

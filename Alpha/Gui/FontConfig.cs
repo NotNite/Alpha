@@ -1,7 +1,7 @@
 ﻿namespace Alpha.Gui;
 
-public record FontConfig(string Path = "", int Size = 13, bool JapaneseGlyphs = false) {
+public record FontConfig(string Path = "", int Size = 13, bool FallbackOnly = false) {
     public string Path = Path;
     public int Size = Size;
-    public bool JapaneseGlyphs = JapaneseGlyphs;
+    public bool FallbackOnly = FallbackOnly;
 }

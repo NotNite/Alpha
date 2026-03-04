@@ -20,7 +20,7 @@ public class ComplexLinkCell : Cell {
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (inAnotherDraw && Util.IsKeyDown(ImGuiKey.ModAlt)) {
+        if (inAnotherDraw && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
             foreach (var (sheet, row, subrow, col) in this.links) {
                 window.DrawCell(sheet, row, subrow, col, inAnotherDraw: true);
             }

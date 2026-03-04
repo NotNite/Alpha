@@ -159,7 +159,7 @@ public class ExcelWindow : Window {
                     $"Current filter mode: {filterMode}\n"
                     + "Right click to change the filter mode.");
 
-                if (Util.IsMouseClicked(ImGuiMouseButton.Right)) {
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Right)) {
                     this.fullTextSearch = !this.fullTextSearch;
                 }
 
@@ -212,7 +212,7 @@ public class ExcelWindow : Window {
         }
 
         // Disable filter on right click
-        if (ImGui.IsItemHovered() && Util.IsMouseClicked(ImGuiMouseButton.Right)) {
+        if (ImGui.IsItemHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Right)) {
             this.contentFilter = string.Empty;
             this.ResolveContentFilter();
         }
@@ -686,7 +686,7 @@ public class ExcelWindow : Window {
         // stupid tick hack works for now lol
         if (this.tempScroll is not null && this.painted) {
             var pos = this.rowMap.IndexOf(this.tempScroll.Value);
-            ImGuiP.SetScrollY(pos * this.itemHeight ?? 0);
+            ImGui.SetScrollY(pos * this.itemHeight ?? 0);
             this.tempScroll = null;
         }
 

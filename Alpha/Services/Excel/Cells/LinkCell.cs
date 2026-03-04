@@ -34,7 +34,7 @@ public class LinkCell : Cell {
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (inAnotherDraw && Util.IsKeyDown(ImGuiKey.ModAlt)) {
+        if (inAnotherDraw && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
             window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
             return;
         }

@@ -5,7 +5,7 @@ namespace Alpha.Gui;
 
 public class Texture {
     public double LastUsed = ImGui.GetTime();
-    public nint? Handle;
+    public ImTextureRef? Handle;
     public Vector2 Size = Vector2.Zero;
 
     public (byte[], uint, uint)? CreationData;
@@ -16,7 +16,7 @@ public class Texture {
         if (this.Handle is null) {
             ImGui.Dummy(actualSize);
         } else {
-            ImGui.Image((ulong) this.Handle, actualSize);
+            ImGui.Image(this.Handle.Value, actualSize);
         }
     }
 }

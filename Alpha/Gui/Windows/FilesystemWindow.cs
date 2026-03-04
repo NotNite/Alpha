@@ -239,7 +239,7 @@ public class FilesystemWindow : Window, IDisposable {
         foreach (var (index, (file, filename)) in files.Index()) {
             var selected = this.SelectedFile?.Item2 == file || this.selectedFiles.Contains(file);
             if (ImGui.Selectable(filename, selected)) {
-                if (Util.IsKeyDown(ImGuiKey.LeftShift)) {
+                if (ImGui.IsKeyDown(ImGuiKey.LeftShift)) {
                     var isDeselect = this.selectedFiles.Contains(file);
 
                     if (this.shiftStartFile != null) {
@@ -268,7 +268,7 @@ public class FilesystemWindow : Window, IDisposable {
                             }
                         }
                     }
-                } else if (Util.IsKeyDown(ImGuiKey.LeftCtrl)) {
+                } else if (ImGui.IsKeyDown(ImGuiKey.LeftCtrl)) {
                     if (this.selectedFiles.Contains(file)) {
                         this.selectedFiles.Remove(file);
                     } else {

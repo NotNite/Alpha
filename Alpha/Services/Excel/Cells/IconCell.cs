@@ -72,7 +72,7 @@ public class IconCell : Cell {
 
         const int maxY = 512;
         if (inAnotherDraw) {
-            var shouldShowMagnum = Util.IsKeyDown(ImGuiKey.ModAlt);
+            var shouldShowMagnum = ImGui.IsKeyDown(ImGuiKey.ModAlt);
             if (shouldShowMagnum) {
                 var magnumSize = this.ScaleSize(icon.Size, maxY);
                 icon.Draw(magnumSize);
@@ -80,7 +80,7 @@ public class IconCell : Cell {
                 icon.Draw(lineSize);
         } else {
             icon.Draw(lineSize);
-            var shouldShowMagnum = Util.IsKeyDown(ImGuiKey.ModAlt) && (ImGui.IsItemHovered() || inAnotherDraw);
+            var shouldShowMagnum = ImGui.IsKeyDown(ImGuiKey.ModAlt) && (ImGui.IsItemHovered() || inAnotherDraw);
             if (shouldShowMagnum) {
                 var magnumSize = this.ScaleSize(icon.Size, maxY);
                 ImGui.BeginTooltip();

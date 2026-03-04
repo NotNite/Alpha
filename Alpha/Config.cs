@@ -18,7 +18,7 @@ public class Config : IDisposable {
     );
 
     // UI
-    public Vector2 WindowPos = new(100, 100);
+    public Vector2? WindowPos;
     public Vector2 WindowSize = new(1280, 720);
     public UiTheme Theme = UiTheme.Dark;
     public Vector3? BackgroundColor;
