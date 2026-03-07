@@ -15,11 +15,10 @@ public unsafe class ImGuiWrapper : IDisposable {
     private readonly SDLWindow* window;
     private readonly uint windowId;
     private readonly SDLRenderer* renderer;
-    private readonly ImGuiContext* imguiContext;
     private readonly Vector3 backgroundColor;
 
-    private Backend.SDLWindowPtr backendWindow => new((Backend.SDLWindow*) this.window);
-    private Backend.SDLRendererPtr backendRenderer => new((Backend.SDLRenderer*) this.renderer);
+    private Backend.SDLWindowPtr BackendWindow => new((Backend.SDLWindow*) this.window);
+    private Backend.SDLRendererPtr BackendRenderer => new((Backend.SDLRenderer*) this.renderer);
 
     public Vector2 WindowPos {
         get {
@@ -132,8 +131,8 @@ public unsafe class ImGuiWrapper : IDisposable {
         var style = ImGui.GetStyle();
         style.ScaleAllSizes(scale);
 
-        Backend.ImGuiImplSDL3.InitForSDLRenderer(this.backendWindow, this.backendRenderer);
-        Backend.ImGuiImplSDL3.SDLRenderer3Init(this.backendRenderer);
+        Backend.ImGuiImplSDL3.InitForSDLRenderer(this.BackendWindow, this.BackendRenderer);
+        Backend.ImGuiImplSDL3.SDLRenderer3Init(this.BackendRenderer);
     }
 
     public void DoEvents() {
@@ -183,7 +182,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         );
 
         SDL.RenderClear(this.renderer);
-        Backend.ImGuiImplSDL3.SDLRenderer3RenderDrawData(ImGui.GetDrawData(), this.backendRenderer);
+        Backend.ImGuiImplSDL3.SDLRenderer3RenderDrawData(ImGui.GetDrawData(), this.BackendRenderer);
         SDL.RenderPresent(this.renderer);
         ImGui.EndFrame();
     }

@@ -34,8 +34,10 @@ public class PathListService {
             var i = 0;
             await using var writer = new StreamWriter(outputFile);
             reader.ReadLine(); // skip header
-            while (!reader.EndOfStream) {
-                var line = reader.ReadLine()!.Trim();
+            while (true) {
+                var line = await reader.ReadLineAsync();
+                if (line == null) break;
+                line = line.Trim();
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 writer.WriteLine(line);
                 i++;
