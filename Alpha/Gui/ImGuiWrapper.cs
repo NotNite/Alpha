@@ -39,7 +39,10 @@ public unsafe class ImGuiWrapper : IDisposable {
     }
 
     public ImGuiWrapper(Config config, string iniPath) {
-        SDL.Init(SDLInitFlags.Events | SDLInitFlags.Video);
+        if (!SDL.Init(SDLInitFlags.Events | SDLInitFlags.Video)) {
+            var error = Marshal.PtrToStringAnsi((nint) SDL.GetError());
+            Log.Error("Failed to initialize SDL, things will probably crash: {Error}", error);
+        }
 
         var scale = SDL.GetDisplayContentScale(SDL.GetPrimaryDisplay());
         this.window = SDL.CreateWindow(
