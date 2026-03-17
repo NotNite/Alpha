@@ -101,6 +101,11 @@ public class SettingsWindow : Window {
         Components.DrawHelpTooltip(
             "Docking allows you to snap windows onto one another. If you find the overlays distracting, turn this off.");
 
+        if (ImGui.InputFloat("Font scale", ref this.config.FontScale, 0f)) {
+            this.config.FontScale = Math.Max(this.config.FontScale, 0.25f);
+            anyChanged = true;
+        }
+
         if (ImGui.CollapsingHeader("Colors")) {
             if (Components.DrawEnumCombo("UI theme",
                     ref this.config.Theme,

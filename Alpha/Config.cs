@@ -23,6 +23,7 @@ public class Config : IDisposable {
     public UiTheme Theme = UiTheme.Dark;
     public Vector3? BackgroundColor;
     public List<FontConfig> ExtraFonts = [];
+    public float FontScale = 1;
     public bool EnableDocking = true;
 
     // Initial setup

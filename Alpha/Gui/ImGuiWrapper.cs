@@ -78,6 +78,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         }
 
         if (config.BackgroundColor is { } bg) this.backgroundColor = bg;
+        ImGui.GetStyle().FontScaleDpi = config.FontScale;
 
 #pragma warning disable CS0618 // Type or member is obsolete
         var builder = new ImGuiFontBuilder();
