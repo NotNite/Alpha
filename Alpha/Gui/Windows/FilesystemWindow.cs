@@ -16,8 +16,8 @@ public class FilesystemWindow : Window, IDisposable {
     public FileResource? File;
 
     private string filter = string.Empty;
-    private readonly List<string> filteredDirectories = [];
-    private readonly List<string> visibleRootCategories = [..PathService.RootCategories.Keys];
+    private readonly HashSet<string> filteredDirectories = [];
+    private readonly HashSet<string> visibleRootCategories = [..PathService.RootCategories.Keys];
     private readonly List<PathService.File> selectedFiles = new();
     private PathService.File? shiftStartFile;
     private float sidebarWidth = 300f;
@@ -116,20 +116,18 @@ public class FilesystemWindow : Window, IDisposable {
                     if (path.Contains(this.filter, StringComparison.OrdinalIgnoreCase)) {
                         for (var i = path.LastIndexOf('/'); i != -1; i = path.LastIndexOf('/', i - 1)) {
                             var folderSection = path[..i];
-                            if (!this.filteredDirectories.Contains(folderSection)) {
-                                this.filteredDirectories.Add(folderSection);
-                            }
+                            this.filteredDirectories.Add(folderSection);
                         }
 
-                        if (folder.Split('/').FirstOrDefault() is { } root &&
-                            !this.visibleRootCategories.Contains(root))
-                            this.visibleRootCategories.Add(root);
+                        if (folder.Split('/').FirstOrDefault() is { } root) this.visibleRootCategories.Add(root);
                     }
                 }
             } else {
                 this.filteredDirectories.Clear();
                 this.visibleRootCategories.Clear();
-                this.visibleRootCategories.AddRange(PathService.RootCategories.Keys);
+                foreach (var cat in PathService.RootCategories.Keys) {
+                    this.visibleRootCategories.Add(cat);
+                }
             }
         }
 
