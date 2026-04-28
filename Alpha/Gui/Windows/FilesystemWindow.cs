@@ -16,6 +16,7 @@ public class FilesystemWindow : Window, IDisposable {
     public FileResource? File;
 
     private string filter = string.Empty;
+    private string manualFile = string.Empty;
     private readonly HashSet<string> filteredDirectories = [];
     private readonly HashSet<string> visibleRootCategories = [..PathService.RootCategories.Keys];
     private readonly List<PathService.File> selectedFiles = new();
@@ -81,6 +82,10 @@ public class FilesystemWindow : Window, IDisposable {
                 this.pathService.SetGameData(this.GameData);
                 this.GameDataChanged();
             }
+
+            ImGui.InputText("##FilesystemWindow_ManualFile", ref this.manualFile, 1024);
+            ImGui.SameLine();
+            if (ImGui.Button("Open")) this.Open(new PathService.File(this.manualFile));
 
             var hasSelectedFiles = this.selectedFiles.Count > 0;
             if (!hasSelectedFiles) ImGui.BeginDisabled();
