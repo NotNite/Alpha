@@ -3,6 +3,7 @@ using Alpha.Game;
 using Alpha.Services;
 using Alpha.Utils;
 using Hexa.NET.ImGui;
+using Lumina.Data;
 using NativeFileDialog.Extended;
 using Serilog;
 
@@ -158,5 +159,48 @@ public class Components {
         } else {
             return false;
         }
+    }
+
+    public static bool DrawLanguagePicker(string label, ref Language current) {
+        var changed = false;
+
+        if (ImGui.BeginCombo(label, GetLanguageName(current), ImGuiComboFlags.HeightLargest)) {
+            ImGui.TextDisabled("Global");
+            DrawLanguage(Language.English, ref current);
+            DrawLanguage(Language.Japanese, ref current);
+            DrawLanguage(Language.German, ref current);
+            DrawLanguage(Language.French, ref current);
+
+            ImGui.Separator();
+            ImGui.TextDisabled("Korea");
+            DrawLanguage(Language.Korean, ref current);
+
+            ImGui.Separator();
+            ImGui.TextDisabled("China");
+            DrawLanguage(Language.ChineseSimplified, ref current);
+
+            ImGui.Separator();
+            ImGui.TextDisabled("Taiwan");
+            DrawLanguage(Language.TraditionalChinese, ref current);
+
+            ImGui.EndCombo();
+        }
+
+        return changed;
+
+        void DrawLanguage(Language language, ref Language current) {
+            var selected = current == language;
+            if (ImGui.Selectable(GetLanguageName(language), selected)) {
+                current = language;
+                changed = true;
+            }
+            if (selected) ImGui.SetItemDefaultFocus();
+        }
+
+        string GetLanguageName(Language language) => language switch {
+            Language.ChineseSimplified => "Chinese (Simplified)",
+            Language.TraditionalChinese => "Chinese (Traditional)",
+            _ => language.ToString()
+        };
     }
 }

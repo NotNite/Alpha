@@ -129,8 +129,7 @@ public class ExcelWindow : Window {
 
             if (this.GameData is { } gameData) {
                 var language = gameData.GameData.Options.DefaultExcelLanguage;
-                Language[] languages = [Language.English, Language.Japanese, Language.German, Language.French];
-                if (Components.DrawEnumCombo("##gameDataLanguage", ref language, languages)) {
+                if (Components.DrawLanguagePicker("##gameDataLanguage", ref language)) {
                     gameData.GameData.Options.DefaultExcelLanguage = language;
                     // Empty the cache
                     this.excel.SetGameData(gameData);

@@ -65,9 +65,7 @@ public class SettingsWindow : Window {
         if (ImGui.Checkbox("Display row IDs as hexadecimal", ref this.config.RowIdAsHex)) anyChanged = true;
 
         {
-            Language[] languages = [Language.English, Language.Japanese, Language.German, Language.French];
-            if (Components.DrawEnumCombo("Default language (requires restart)",
-                    ref this.config.DefaultLanguage, languages)) {
+            if (Components.DrawLanguagePicker("Default language (requires restart)", ref this.config.DefaultLanguage)) {
                 anyChanged = true;
             }
 
