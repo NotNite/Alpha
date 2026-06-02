@@ -40,6 +40,7 @@ public class Config : IDisposable {
     public bool HighlightLinks = true;
     public bool LineHeightImages;
     public bool RowIdAsHex;
+    public bool DrawLinksInline;
     public Language DefaultLanguage = Language.English;
     public SchemaProvider SchemaProvider = SchemaProvider.ExdSchema;
 

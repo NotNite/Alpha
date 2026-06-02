@@ -34,13 +34,27 @@ public class LinkCell : Cell {
     }
 
     public override void Draw(ExcelWindow window, bool inAnotherDraw = false) {
-        if (inAnotherDraw && ImGui.IsKeyDown(ImGuiKey.ModAlt)) {
+        if (inAnotherDraw && (ImGui.IsKeyDown(ImGuiKey.ModAlt) || window.DrawLinksInline)) {
             window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
             return;
         }
 
-        if (ImGui.Button(this.text)) {
-            window.OpenSheet(this.target, ((uint) this.targetRow, null));
+        if (window.DrawLinksInline) {
+            if (ImGui.TextLink(this.text)) {
+                window.OpenSheet(this.target, ((uint) this.targetRow, null));
+            }
+
+            window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
+        } else {
+            if (ImGui.Button(this.text)) {
+                window.OpenSheet(this.target, ((uint) this.targetRow, null));
+            }
+
+            if (ImGui.IsItemHovered()) {
+                ImGui.BeginTooltip();
+                window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
+                ImGui.EndTooltip();
+            }
         }
 
         if (ImGui.BeginPopupContextItem(this.rowColStr)) {
@@ -49,12 +63,6 @@ public class LinkCell : Cell {
             }
 
             ImGui.EndPopup();
-        }
-
-        if (ImGui.IsItemHovered()) {
-            ImGui.BeginTooltip();
-            window.DrawCell(this.target, this.targetRow, null, this.targetCol, inAnotherDraw: true);
-            ImGui.EndTooltip();
         }
     }
 }

@@ -22,6 +22,8 @@ namespace Alpha.Gui.Windows;
 
 [Window("Excel")]
 public class ExcelWindow : Window {
+    public bool DrawLinksInline => this.config.DrawLinksInline;
+
     private IAlphaSheet? selectedSheet;
 
     private (string, (uint Row, ushort? Subrow)?)? queuedOpen;

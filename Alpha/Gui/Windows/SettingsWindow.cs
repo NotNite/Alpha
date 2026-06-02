@@ -63,6 +63,7 @@ public class SettingsWindow : Window {
         if (ImGui.Checkbox("Highlight links", ref this.config.HighlightLinks)) anyChanged = true;
         if (ImGui.Checkbox("Keep images at line height", ref this.config.LineHeightImages)) anyChanged = true;
         if (ImGui.Checkbox("Display row IDs as hexadecimal", ref this.config.RowIdAsHex)) anyChanged = true;
+        if (ImGui.Checkbox("Display link contents inline", ref this.config.DrawLinksInline)) anyChanged = true;
 
         {
             if (Components.DrawLanguagePicker("Default language (requires restart)", ref this.config.DefaultLanguage)) {
